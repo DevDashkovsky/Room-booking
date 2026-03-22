@@ -41,6 +41,7 @@ func main() {
 
 	r.Get("/_info", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
+		logger.Info().Msg("ok")
 	})
 
 	logger.Info().Str("port", cfg.Port).Msg("starting server")

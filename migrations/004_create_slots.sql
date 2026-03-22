@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE IF NOT EXISTS slots (
     id       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     room_id  UUID NOT NULL REFERENCES rooms(id),

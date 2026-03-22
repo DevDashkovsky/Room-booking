@@ -1,3 +1,4 @@
+-- +goose Up
 CREATE TABLE IF NOT EXISTS bookings (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     slot_id         UUID NOT NULL REFERENCES slots(id),
