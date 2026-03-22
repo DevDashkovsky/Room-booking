@@ -2,10 +2,13 @@ package db
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/pressly/goose/v3"
 )
 
 type Pool struct {
@@ -41,4 +44,17 @@ func (p *Pool) Close() {
 
 func (p *Pool) PgxPool() *pgxpool.Pool {
 	return p.pool
+}
+
+func RunMigrations(databaseURL, migrationsDir string) error {
+	db, err := sql.Open("pgx", databaseURL)
+	if err != nil {
+		return fmt.Errorf("open db for migrations: %w", err)
+	}
+	defer db.Close()
+
+	if err := goose.Up(db, migrationsDir); err != nil {
+		return fmt.Errorf("run migrations: %w", err)
+	}
+	return nil
 }

@@ -33,6 +33,10 @@ func main() {
 	}
 	defer pool.Close()
 
+	if err := db.RunMigrations(cfg.DatabaseURL, "migrations"); err != nil {
+		logger.Fatal().Err(err).Msg("failed to run migrations")
+	}
+
 	r := chi.NewRouter()
 
 	r.Get("/_info", func(w http.ResponseWriter, r *http.Request) {
