@@ -24,3 +24,11 @@ func respondError(w http.ResponseWriter, status int, code string, message string
 	a := errorBody{Error: errorDetail{Code: code, Message: message}}
 	respondJSON(w, status, a)
 }
+
+func readBodyJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
+	if err := json.NewDecoder(r.Body).Decode(dst); err != nil {
+		respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "invalid JSON")
+		return false
+	}
+	return true
+}
