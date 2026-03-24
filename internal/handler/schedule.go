@@ -60,7 +60,7 @@ func (h *ScheduleHandler) Create(w http.ResponseWriter, r *http.Request) {
 func handleServiceError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, domain.ErrInvalidRequest):
-		respondError(w, http.StatusBadRequest, "INVALID_REQUEST", err.Error())
+		respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "invalid request")
 	case errors.Is(err, domain.ErrRoomNotFound):
 		respondError(w, http.StatusNotFound, "ROOM_NOT_FOUND", "room not found")
 	case errors.Is(err, domain.ErrSlotNotFound):
