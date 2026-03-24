@@ -60,6 +60,12 @@ func (r *BookingRepository) ActiveBySlotID(ctx context.Context, slotID string) (
 	return &b, nil
 }
 
+func (r *BookingRepository) Count(ctx context.Context) (int, error) {
+	var count int
+	err := r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM bookings`).Scan(&count)
+	return count, err
+}
+
 func (r *BookingRepository) ListAll(ctx context.Context, limit, offset int) ([]domain.Booking, error) {
 	rows, err := r.pool.Query(ctx,
 		`SELECT id, slot_id, user_id, status, conference_link, created_at
