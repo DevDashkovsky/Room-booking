@@ -37,7 +37,7 @@ func (r *RoomRepository) List(ctx context.Context) ([]domain.Room, error) {
 	}
 	defer rows.Close()
 
-	var rooms []domain.Room
+	rooms := make([]domain.Room, 0)
 	for rows.Next() {
 		var room domain.Room
 		if err := rows.Scan(&room.ID, &room.Name, &room.Description, &room.Capacity, &room.CreatedAt); err != nil {

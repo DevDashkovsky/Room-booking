@@ -52,7 +52,7 @@ func (r *SlotRepository) ListByRoomAndDate(ctx context.Context, roomID string, d
 	}
 	defer rows.Close()
 
-	var slots []domain.Slot
+	slots := make([]domain.Slot, 0)
 	for rows.Next() {
 		var slot domain.Slot
 		if err := rows.Scan(&slot.ID, &slot.RoomID, &slot.Start, &slot.End); err != nil {

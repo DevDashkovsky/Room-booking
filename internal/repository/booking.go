@@ -79,7 +79,7 @@ func (r *BookingRepository) ListAll(ctx context.Context, limit, offset int) ([]d
 	}
 	defer rows.Close()
 
-	var bookings []domain.Booking
+	bookings := make([]domain.Booking, 0)
 	for rows.Next() {
 		var b domain.Booking
 		if err := rows.Scan(&b.ID, &b.SlotID, &b.UserID, &b.Status, &b.ConferenceLink, &b.CreatedAt); err != nil {
@@ -104,7 +104,7 @@ func (r *BookingRepository) ListByUser(ctx context.Context, userID string) ([]do
 	}
 	defer rows.Close()
 
-	var bookings []domain.Booking
+	bookings := make([]domain.Booking, 0)
 	for rows.Next() {
 		var b domain.Booking
 		if err := rows.Scan(&b.ID, &b.SlotID, &b.UserID, &b.Status, &b.ConferenceLink, &b.CreatedAt); err != nil {
