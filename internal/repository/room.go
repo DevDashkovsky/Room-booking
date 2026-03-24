@@ -2,7 +2,9 @@ package repository
 
 import (
 	"context"
+	"errors"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/DevDashkovsky/room-booking/internal/domain"
@@ -45,4 +47,20 @@ func (r *RoomRepository) List(ctx context.Context) ([]domain.Room, error) {
 	}
 
 	return rooms, rows.Err()
+}
+
+func (r *RoomRepository) GetByID(ctx context.Context, id string) (*domain.Room, error) {
+	var room domain.Room
+	err := r.pool.QueryRow(ctx,
+		`SELECT id, name, description, capacity, created_at
+		 FROM rooms WHERE id = $1`,
+		id,
+	).Scan(&room.ID, &room.Name, &room.Description, &room.Capacity, &room.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &room, nil
 }
