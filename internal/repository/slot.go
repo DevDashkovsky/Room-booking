@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -42,7 +43,7 @@ func (r *SlotRepository) ListByRoomAndDate(ctx context.Context, roomID string, d
 		`SELECT s.id, s.room_id, s.start_at, s.end_at
 		 FROM slots s
 		 LEFT JOIN bookings b ON b.slot_id = s.id AND b.status = 'active'
-		 WHERE s.room_id = $1 AND s.start_at >= $2 AND s.start_at < $3
+		 WHERE s.room_id = $1 AND s.start_at >= $2 AND s.start_at < $3 AND b.id IS NULL
 		 ORDER BY s.start_at`,
 		roomID, dayStart, dayEnd,
 	)
@@ -68,6 +69,9 @@ func (r *SlotRepository) GetByID(ctx context.Context, id string) (*domain.Slot, 
 		`SELECT id, room_id, start_at, end_at FROM slots WHERE id = $1`,
 		id,
 	).Scan(&s.ID, &s.RoomID, &s.Start, &s.End)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
 	if err != nil {
 		return nil, err
 	}
