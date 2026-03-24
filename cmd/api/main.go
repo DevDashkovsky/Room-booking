@@ -6,10 +6,13 @@ import (
 	"os"
 	"time"
 
+	"github.com/rs/zerolog"
+
 	"github.com/DevDashkovsky/room-booking/internal/config"
 	"github.com/DevDashkovsky/room-booking/internal/db"
-	"github.com/go-chi/chi/v5"
-	"github.com/rs/zerolog"
+	"github.com/DevDashkovsky/room-booking/internal/handler"
+	"github.com/DevDashkovsky/room-booking/internal/repository"
+	"github.com/DevDashkovsky/room-booking/internal/service"
 )
 
 func main() {
@@ -37,11 +40,23 @@ func main() {
 		logger.Fatal().Err(err).Msg("failed to run migrations")
 	}
 
-	r := chi.NewRouter()
+	roomRepo := repository.NewRoomRepository(pool.PgxPool())
+	scheduleRepo := repository.NewScheduleRepository(pool.PgxPool())
+	slotRepo := repository.NewSlotRepository(pool.PgxPool())
+	bookingRepo := repository.NewBookingRepository(pool.PgxPool())
 
-	r.Get("/_info", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		logger.Info().Msg("ok")
+	roomSvc := service.NewRoomService(roomRepo)
+	scheduleSvc := service.NewScheduleService(scheduleRepo, roomRepo, slotRepo)
+	slotSvc := service.NewSlotService(slotRepo, roomRepo, scheduleRepo)
+	bookingSvc := service.NewBookingService(bookingRepo, slotRepo)
+
+	r := handler.NewRouter(handler.Deps{
+		JWTSecret: cfg.JWTSecret,
+		AuthH:     handler.NewAuthHandler(cfg.JWTSecret),
+		RoomH:     handler.NewRoomHandler(roomSvc),
+		ScheduleH: handler.NewScheduleHandler(scheduleSvc),
+		SlotH:     handler.NewSlotHandler(slotSvc),
+		BookingH:  handler.NewBookingHandler(bookingSvc),
 	})
 
 	logger.Info().Str("port", cfg.Port).Msg("starting server")
