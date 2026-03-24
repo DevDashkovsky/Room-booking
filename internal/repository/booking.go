@@ -95,7 +95,7 @@ func (r *BookingRepository) ListByUser(ctx context.Context, userID string) ([]do
 		`SELECT b.id, b.slot_id, b.user_id, b.status, b.conference_link, b.created_at
 		 FROM bookings b
 		 JOIN slots s ON s.id = b.slot_id
-		 WHERE b.user_id = $1 AND s.start_at >= $2
+		 WHERE b.user_id = $1 AND b.status = 'active' AND s.start_at >= $2
 		 ORDER BY s.start_at`,
 		userID, time.Now().UTC(),
 	)
