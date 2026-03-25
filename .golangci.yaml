@@ -1,0 +1,77 @@
+run:
+  timeout: 3m
+
+linters:
+  enable:
+    - errcheck
+    - govet
+    - staticcheck
+    - gosimple
+    - ineffassign
+    - unused
+    - typecheck
+    - bodyclose
+    - gocritic
+    - gofmt
+    - goimports
+    - revive
+    - misspell
+    - prealloc
+    - unconvert
+    - unparam
+    - nilerr
+    - errorlint
+    - noctx
+    - sqlclosecheck
+    - rowserrcheck
+
+linters-settings:
+  govet:
+    shadow: true
+  revive:
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: context-keys-type
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: error-naming
+      - name: exported
+        disabled: true
+      - name: increment-decrement
+      - name: var-naming
+      - name: range
+      - name: receiver-naming
+      - name: indent-error-flow
+      - name: empty-block
+      - name: superfluous-else
+      - name: unreachable-code
+      - name: redefines-builtin-id
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+    disabled-checks:
+      - httpNoBody
+      - unnamedResult
+  errorlint:
+    errorf: true
+    asserts: true
+    comparison: true
+  misspell:
+    locale: US
+    ignore-words:
+      - cancelled
+
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - errcheck
+        - unparam
+        - bodyclose

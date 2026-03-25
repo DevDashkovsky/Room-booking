@@ -17,10 +17,10 @@ type errorDetail struct {
 func respondJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	_ = json.NewEncoder(w).Encode(data)
 }
 
-func respondError(w http.ResponseWriter, status int, code string, message string) {
+func respondError(w http.ResponseWriter, status int, code, message string) {
 	a := errorBody{Error: errorDetail{Code: code, Message: message}}
 	respondJSON(w, status, a)
 }

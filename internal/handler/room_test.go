@@ -294,7 +294,8 @@ func TestBookingCancel_UserMissingId(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
 
-	if w.Code != http.StatusBadRequest || w.Code == http.StatusNotFound {
+	if w.Code != http.StatusBadRequest && w.Code != http.StatusNotFound {
+		t.Errorf("status = %d, want 400 or 404", w.Code)
 	}
 }
 

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
-	_ "github.com/jackc/pgx/v5/stdlib"
+	_ "github.com/jackc/pgx/v5/stdlib" // pgx driver for database/sql
 	"github.com/pressly/goose/v3"
 )
 
@@ -51,7 +51,7 @@ func RunMigrations(databaseURL, migrationsDir string) error {
 	if err != nil {
 		return fmt.Errorf("open db for migrations: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	if err := goose.Up(db, migrationsDir); err != nil {
 		return fmt.Errorf("run migrations: %w", err)
