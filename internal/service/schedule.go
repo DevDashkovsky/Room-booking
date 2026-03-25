@@ -30,6 +30,10 @@ func NewScheduleService(
 }
 
 func (s *ScheduleService) Create(ctx context.Context, schedule *domain.Schedule) error {
+	if err := validateSchedule(schedule); err != nil {
+		return err
+	}
+
 	room, err := s.roomRepo.GetByID(ctx, schedule.RoomID)
 	if err != nil {
 		return fmt.Errorf("get room: %w", err)
@@ -44,10 +48,6 @@ func (s *ScheduleService) Create(ctx context.Context, schedule *domain.Schedule)
 	}
 	if exists {
 		return domain.ErrScheduleExists
-	}
-
-	if err := validateSchedule(schedule); err != nil {
-		return err
 	}
 
 	if err := s.scheduleRepo.Create(ctx, schedule); err != nil {
