@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/DevDashkovsky/room-booking/internal/middleware"
+	"github.com/DevDashkovsky/room-booking/internal/service"
 )
 
 func ctxWithRole(role string) context.Context {
@@ -24,6 +25,60 @@ func ctxWithRoleAndChiParam(role, paramName, paramVal string) context.Context {
 	rctx.URLParams.Add(paramName, paramVal)
 	ctx := context.WithValue(ctxWithRole(role), chi.RouteCtxKey, rctx)
 	return ctx
+}
+
+func authSvcNilRepo() *service.AuthService {
+	return service.NewAuthService(nil, "secret")
+}
+
+func TestAuthHandler_Register_InvalidJSON(t *testing.T) {
+	h := NewAuthHandler("secret", nil)
+	r := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(`not json`))
+	w := httptest.NewRecorder()
+	h.Register(w, r)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", w.Code)
+	}
+}
+
+func TestAuthHandler_Register_EmptyEmail(t *testing.T) {
+	h := NewAuthHandler("secret", authSvcNilRepo())
+	r := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(`{"email":"","password":"pass","role":"user"}`))
+	w := httptest.NewRecorder()
+	h.Register(w, r)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", w.Code)
+	}
+}
+
+func TestAuthHandler_Register_InvalidRole(t *testing.T) {
+	h := NewAuthHandler("secret", authSvcNilRepo())
+	r := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(`{"email":"a@b.com","password":"pass","role":"superadmin"}`))
+	w := httptest.NewRecorder()
+	h.Register(w, r)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", w.Code)
+	}
+}
+
+func TestAuthHandler_Login_InvalidJSON(t *testing.T) {
+	h := NewAuthHandler("secret", nil)
+	r := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(`not json`))
+	w := httptest.NewRecorder()
+	h.Login(w, r)
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", w.Code)
+	}
+}
+
+func TestAuthHandler_Login_EmptyCredentials(t *testing.T) {
+	h := NewAuthHandler("secret", authSvcNilRepo())
+	r := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(`{"email":"","password":""}`))
+	w := httptest.NewRecorder()
+	h.Login(w, r)
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("status = %d, want 401", w.Code)
+	}
 }
 
 func TestBookingHandler_Create_InvalidJSON(t *testing.T) {

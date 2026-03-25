@@ -9,7 +9,7 @@ import (
 )
 
 func TestDummyLogin_Admin(t *testing.T) {
-	h := NewAuthHandler("test-secret")
+	h := NewAuthHandler("test-secret", nil)
 	r := httptest.NewRequest(http.MethodPost, "/dummyLogin", strings.NewReader(`{"role":"admin"}`))
 	w := httptest.NewRecorder()
 
@@ -27,7 +27,7 @@ func TestDummyLogin_Admin(t *testing.T) {
 }
 
 func TestDummyLogin_User(t *testing.T) {
-	h := NewAuthHandler("test-secret")
+	h := NewAuthHandler("test-secret", nil)
 	r := httptest.NewRequest(http.MethodPost, "/dummyLogin", strings.NewReader(`{"role":"user"}`))
 	w := httptest.NewRecorder()
 
@@ -39,7 +39,7 @@ func TestDummyLogin_User(t *testing.T) {
 }
 
 func TestDummyLogin_InvalidRole(t *testing.T) {
-	h := NewAuthHandler("test-secret")
+	h := NewAuthHandler("test-secret", nil)
 	r := httptest.NewRequest(http.MethodPost, "/dummyLogin", strings.NewReader(`{"role":"superadmin"}`))
 	w := httptest.NewRecorder()
 
@@ -51,7 +51,7 @@ func TestDummyLogin_InvalidRole(t *testing.T) {
 }
 
 func TestDummyLogin_InvalidJSON(t *testing.T) {
-	h := NewAuthHandler("test-secret")
+	h := NewAuthHandler("test-secret", nil)
 	r := httptest.NewRequest(http.MethodPost, "/dummyLogin", strings.NewReader(`not json`))
 	w := httptest.NewRecorder()
 

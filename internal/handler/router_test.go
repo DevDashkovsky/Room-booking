@@ -9,7 +9,7 @@ import (
 func TestRouter_Info(t *testing.T) {
 	r := NewRouter(Deps{
 		JWTSecret: "secret",
-		AuthH:     NewAuthHandler("secret"),
+		AuthH:     NewAuthHandler("secret", nil),
 	})
 
 	w := httptest.NewRecorder()

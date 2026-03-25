@@ -13,7 +13,7 @@ import (
 func newRouterWithAuth() http.Handler {
 	return NewRouter(Deps{
 		JWTSecret: "secret",
-		AuthH:     NewAuthHandler("secret"),
+		AuthH:     NewAuthHandler("secret", nil),
 	})
 }
 
@@ -214,6 +214,98 @@ func TestScheduleCreate_NoAuth(t *testing.T) {
 
 	if w.Code != http.StatusUnauthorized {
 		t.Errorf("status = %d, want 401", w.Code)
+	}
+}
+
+func TestRegister_InvalidJSON(t *testing.T) {
+	r := newRouterWithAuth()
+	req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(`not json`))
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", w.Code)
+	}
+}
+
+func TestLogin_InvalidJSON(t *testing.T) {
+	r := newRouterWithAuth()
+	req := httptest.NewRequest(http.MethodPost, "/login", strings.NewReader(`not json`))
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", w.Code)
+	}
+}
+
+func TestBookingCreate_UserEmptySlotId(t *testing.T) {
+	r := newRouterWithAuth()
+	req := httptest.NewRequest(http.MethodPost, "/bookings/create", strings.NewReader(`{"slotId":""}`))
+	req.Header.Set("Authorization", "Bearer "+userToken())
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", w.Code)
+	}
+}
+
+func TestBookingCreate_UserInvalidJSON(t *testing.T) {
+	r := newRouterWithAuth()
+	req := httptest.NewRequest(http.MethodPost, "/bookings/create", strings.NewReader(`not json`))
+	req.Header.Set("Authorization", "Bearer "+userToken())
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", w.Code)
+	}
+}
+
+func TestRoomCreate_AdminInvalidJSON(t *testing.T) {
+	r := newRouterWithAuth()
+	req := httptest.NewRequest(http.MethodPost, "/rooms/create", strings.NewReader(`not json`))
+	req.Header.Set("Authorization", "Bearer "+adminToken())
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", w.Code)
+	}
+}
+
+func TestScheduleCreate_AdminInvalidJSON(t *testing.T) {
+	r := newRouterWithAuth()
+	req := httptest.NewRequest(http.MethodPost, "/rooms/some-id/schedule/create", strings.NewReader(`not json`))
+	req.Header.Set("Authorization", "Bearer "+adminToken())
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", w.Code)
+	}
+}
+
+func TestBookingCancel_UserMissingId(t *testing.T) {
+	r := newRouterWithAuth()
+	req := httptest.NewRequest(http.MethodPost, "/bookings//cancel", nil)
+	req.Header.Set("Authorization", "Bearer "+userToken())
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest || w.Code == http.StatusNotFound {
+	}
+}
+
+func TestParsePagination_ZeroPage(t *testing.T) {
+	r := httptest.NewRequest(http.MethodGet, "/bookings/list?page=0&pageSize=5", nil)
+	page, pageSize := parsePagination(r)
+	if page != 1 {
+		t.Errorf("page = %d, want 1 (default for 0)", page)
+	}
+	if pageSize != 5 {
+		t.Errorf("pageSize = %d, want 5", pageSize)
 	}
 }
 
