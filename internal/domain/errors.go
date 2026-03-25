@@ -10,4 +10,5 @@ var (
 	ErrSlotAlreadyBooked = errors.New("SLOT_ALREADY_BOOKED")
 	ErrBookingNotFound   = errors.New("BOOKING_NOT_FOUND")
 	ErrScheduleExists    = errors.New("SCHEDULE_EXISTS")
+	ErrUnauthorized      = errors.New("UNAUTHORIZED")
 )

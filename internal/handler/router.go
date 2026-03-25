@@ -24,6 +24,8 @@ func NewRouter(d Deps) http.Handler {
 		w.WriteHeader(http.StatusOK)
 	})
 	r.Post("/dummyLogin", d.AuthH.DummyLogin)
+	r.Post("/register", d.AuthH.Register)
+	r.Post("/login", d.AuthH.Login)
 
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.Auth(d.JWTSecret))

@@ -73,6 +73,8 @@ func handleServiceError(w http.ResponseWriter, err error) {
 		respondError(w, http.StatusConflict, "SLOT_ALREADY_BOOKED", "slot is already booked")
 	case errors.Is(err, domain.ErrForbidden):
 		respondError(w, http.StatusForbidden, "FORBIDDEN", "access denied")
+	case errors.Is(err, domain.ErrUnauthorized):
+		respondError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid credentials")
 	default:
 		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 	}

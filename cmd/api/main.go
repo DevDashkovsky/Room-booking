@@ -40,11 +40,13 @@ func main() {
 		logger.Fatal().Err(err).Msg("failed to run migrations")
 	}
 
+	userRepo := repository.NewUserRepository(pool.PgxPool())
 	roomRepo := repository.NewRoomRepository(pool.PgxPool())
 	scheduleRepo := repository.NewScheduleRepository(pool.PgxPool())
 	slotRepo := repository.NewSlotRepository(pool.PgxPool())
 	bookingRepo := repository.NewBookingRepository(pool.PgxPool())
 
+	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret)
 	roomSvc := service.NewRoomService(roomRepo)
 	scheduleSvc := service.NewScheduleService(scheduleRepo, roomRepo, slotRepo)
 	slotSvc := service.NewSlotService(slotRepo, roomRepo, scheduleRepo)
@@ -52,7 +54,7 @@ func main() {
 
 	r := handler.NewRouter(handler.Deps{
 		JWTSecret: cfg.JWTSecret,
-		AuthH:     handler.NewAuthHandler(cfg.JWTSecret),
+		AuthH:     handler.NewAuthHandler(cfg.JWTSecret, authSvc),
 		RoomH:     handler.NewRoomHandler(roomSvc),
 		ScheduleH: handler.NewScheduleHandler(scheduleSvc),
 		SlotH:     handler.NewSlotHandler(slotSvc),
