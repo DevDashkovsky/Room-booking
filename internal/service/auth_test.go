@@ -10,7 +10,7 @@ import (
 
 func TestAuthService_Register_EmptyEmail(t *testing.T) {
 	svc := &AuthService{}
-	_, err := svc.Register(context.Background(), "", "pass", "user")
+	_, err := svc.Register(context.Background(), "", "pass")
 	if !errors.Is(err, domain.ErrInvalidRequest) {
 		t.Errorf("got %v, want ErrInvalidRequest", err)
 	}
@@ -18,15 +18,7 @@ func TestAuthService_Register_EmptyEmail(t *testing.T) {
 
 func TestAuthService_Register_EmptyPassword(t *testing.T) {
 	svc := &AuthService{}
-	_, err := svc.Register(context.Background(), "a@b.com", "", "user")
-	if !errors.Is(err, domain.ErrInvalidRequest) {
-		t.Errorf("got %v, want ErrInvalidRequest", err)
-	}
-}
-
-func TestAuthService_Register_InvalidRole(t *testing.T) {
-	svc := &AuthService{}
-	_, err := svc.Register(context.Background(), "a@b.com", "pass", "superadmin")
+	_, err := svc.Register(context.Background(), "a@b.com", "")
 	if !errors.Is(err, domain.ErrInvalidRequest) {
 		t.Errorf("got %v, want ErrInvalidRequest", err)
 	}
@@ -34,7 +26,7 @@ func TestAuthService_Register_InvalidRole(t *testing.T) {
 
 func TestAuthService_Register_EmptyBoth(t *testing.T) {
 	svc := &AuthService{}
-	_, err := svc.Register(context.Background(), "", "", "user")
+	_, err := svc.Register(context.Background(), "", "")
 	if !errors.Is(err, domain.ErrInvalidRequest) {
 		t.Errorf("got %v, want ErrInvalidRequest", err)
 	}

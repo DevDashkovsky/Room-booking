@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"golang.org/x/crypto/bcrypt"
@@ -20,11 +21,8 @@ func NewAuthService(userRepo *repository.UserRepository, jwtSecret string) *Auth
 	return &AuthService{userRepo: userRepo, jwtSecret: jwtSecret}
 }
 
-func (s *AuthService) Register(ctx context.Context, email, password, role string) (*domain.User, error) {
+func (s *AuthService) Register(ctx context.Context, email, password string) (*domain.User, error) {
 	if email == "" || password == "" {
-		return nil, domain.ErrInvalidRequest
-	}
-	if role != "admin" && role != "user" {
 		return nil, domain.ErrInvalidRequest
 	}
 
@@ -33,7 +31,7 @@ func (s *AuthService) Register(ctx context.Context, email, password, role string
 		return nil, fmt.Errorf("check email: %w", err)
 	}
 	if existing != nil {
-		return nil, domain.ErrInvalidRequest
+		return nil, domain.ErrEmailExists
 	}
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
@@ -44,10 +42,13 @@ func (s *AuthService) Register(ctx context.Context, email, password, role string
 	u := &domain.User{
 		Email:        email,
 		PasswordHash: string(hash),
-		Role:         role,
+		Role:         "user",
 	}
 
 	if err := s.userRepo.Create(ctx, u); err != nil {
+		if errors.Is(err, domain.ErrEmailExists) {
+			return nil, domain.ErrEmailExists
+		}
 		return nil, fmt.Errorf("create user: %w", err)
 	}
 

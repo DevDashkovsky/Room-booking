@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/rs/zerolog/log"
 
 	"github.com/DevDashkovsky/room-booking/internal/domain"
 	"github.com/DevDashkovsky/room-booking/internal/middleware"
@@ -75,7 +76,10 @@ func handleServiceError(w http.ResponseWriter, err error) {
 		respondError(w, http.StatusForbidden, "FORBIDDEN", "access denied")
 	case errors.Is(err, domain.ErrUnauthorized):
 		respondError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid credentials")
+	case errors.Is(err, domain.ErrEmailExists):
+		respondError(w, http.StatusConflict, "EMAIL_EXISTS", "user with this email already exists")
 	default:
+		log.Error().Err(err).Msg("unhandled service error")
 		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 	}
 }

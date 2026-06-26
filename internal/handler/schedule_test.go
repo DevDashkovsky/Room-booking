@@ -20,6 +20,7 @@ func TestHandleServiceError(t *testing.T) {
 		{domain.ErrBookingNotFound, 404, "BOOKING_NOT_FOUND"},
 		{domain.ErrScheduleExists, 409, "SCHEDULE_EXISTS"},
 		{domain.ErrSlotAlreadyBooked, 409, "SLOT_ALREADY_BOOKED"},
+		{domain.ErrEmailExists, 409, "EMAIL_EXISTS"},
 		{domain.ErrForbidden, 403, "FORBIDDEN"},
 		{domain.ErrUnauthorized, 401, "UNAUTHORIZED"},
 		{errors.New("unknown"), 500, "INTERNAL_ERROR"},

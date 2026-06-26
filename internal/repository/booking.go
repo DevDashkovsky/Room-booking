@@ -6,10 +6,13 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/DevDashkovsky/room-booking/internal/domain"
 )
+
+const pgUniqueViolation = "23505"
 
 type BookingRepository struct {
 	pool *pgxpool.Pool
@@ -20,12 +23,19 @@ func NewBookingRepository(pool *pgxpool.Pool) *BookingRepository {
 }
 
 func (r *BookingRepository) Create(ctx context.Context, b *domain.Booking) error {
-	return r.pool.QueryRow(ctx,
+	err := r.pool.QueryRow(ctx,
 		`INSERT INTO bookings (slot_id, user_id, conference_link)
 		 VALUES ($1, $2, $3)
 		 RETURNING id, status, created_at`,
 		b.SlotID, b.UserID, b.ConferenceLink,
 	).Scan(&b.ID, &b.Status, &b.CreatedAt)
+
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
+		// Гонка: вторая активная бронь на тот же слот отсечена partial unique index.
+		return domain.ErrSlotAlreadyBooked
+	}
+	return err
 }
 
 func (r *BookingRepository) GetByID(ctx context.Context, id string) (*domain.Booking, error) {

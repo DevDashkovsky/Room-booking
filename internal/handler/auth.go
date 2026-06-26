@@ -53,13 +53,12 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Email    string `json:"email"`
 		Password string `json:"password"`
-		Role     string `json:"role"`
 	}
 	if !readBodyJSON(w, r, &req) {
 		return
 	}
 
-	user, err := h.authSvc.Register(r.Context(), req.Email, req.Password, req.Role)
+	user, err := h.authSvc.Register(r.Context(), req.Email, req.Password)
 	if err != nil {
 		handleServiceError(w, err)
 		return

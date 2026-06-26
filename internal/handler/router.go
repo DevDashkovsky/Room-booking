@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"context"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 
@@ -15,12 +17,21 @@ type Deps struct {
 	ScheduleH *ScheduleHandler
 	SlotH     *SlotHandler
 	BookingH  *BookingHandler
+	Ping      func(context.Context) error
 }
 
 func NewRouter(d Deps) http.Handler {
 	r := chi.NewRouter()
 
-	r.Get("/_info", func(w http.ResponseWriter, _ *http.Request) {
+	r.Get("/_info", func(w http.ResponseWriter, req *http.Request) {
+		if d.Ping != nil {
+			ctx, cancel := context.WithTimeout(req.Context(), 2*time.Second)
+			defer cancel()
+			if err := d.Ping(ctx); err != nil {
+				respondError(w, http.StatusServiceUnavailable, "UNAVAILABLE", "database is unavailable")
+				return
+			}
+		}
 		w.WriteHeader(http.StatusOK)
 	})
 	r.Post("/dummyLogin", d.AuthH.DummyLogin)

@@ -43,17 +43,7 @@ func TestAuthHandler_Register_InvalidJSON(t *testing.T) {
 
 func TestAuthHandler_Register_EmptyEmail(t *testing.T) {
 	h := NewAuthHandler("secret", authSvcNilRepo())
-	r := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(`{"email":"","password":"pass","role":"user"}`))
-	w := httptest.NewRecorder()
-	h.Register(w, r)
-	if w.Code != http.StatusBadRequest {
-		t.Errorf("status = %d, want 400", w.Code)
-	}
-}
-
-func TestAuthHandler_Register_InvalidRole(t *testing.T) {
-	h := NewAuthHandler("secret", authSvcNilRepo())
-	r := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(`{"email":"a@b.com","password":"pass","role":"superadmin"}`))
+	r := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(`{"email":"","password":"pass"}`))
 	w := httptest.NewRecorder()
 	h.Register(w, r)
 	if w.Code != http.StatusBadRequest {

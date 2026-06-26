@@ -15,12 +15,14 @@ type Pool struct {
 	pool *pgxpool.Pool
 }
 
-func Connect(ctx context.Context, databaseURL string) (*Pool, error) {
+func Connect(ctx context.Context, databaseURL string, maxConns int32) (*Pool, error) {
 	cfg, err := pgxpool.ParseConfig(databaseURL)
 	if err != nil {
 		return nil, fmt.Errorf("parse db config: %w", err)
 	}
-	cfg.MaxConns = 20
+	if maxConns > 0 {
+		cfg.MaxConns = maxConns
+	}
 
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
