@@ -4,11 +4,14 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 )
@@ -27,7 +30,7 @@ func doJSON(t *testing.T, method, path string, body any) (int, map[string]any) {
 		b, _ := json.Marshal(body)
 		r = bytes.NewReader(b)
 	}
-	req, err := http.NewRequest(method, baseURL()+path, r)
+	req, err := http.NewRequestWithContext(t.Context(), method, baseURL()+path, r)
 	if err != nil {
 		t.Fatalf("create request: %v", err)
 	}
@@ -44,7 +47,7 @@ func doJSONAuth(t *testing.T, method, path, token string, body any) (int, map[st
 		b, _ := json.Marshal(body)
 		r = bytes.NewReader(b)
 	}
-	req, err := http.NewRequest(method, baseURL()+path, r)
+	req, err := http.NewRequestWithContext(t.Context(), method, baseURL()+path, r)
 	if err != nil {
 		t.Fatalf("create request: %v", err)
 	}
@@ -57,7 +60,7 @@ func doJSONAuth(t *testing.T, method, path, token string, body any) (int, map[st
 
 func execReq(t *testing.T, req *http.Request) (int, map[string]any) {
 	t.Helper()
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := (&http.Client{Timeout: 15 * time.Second}).Do(req)
 	if err != nil {
 		t.Fatalf("request failed: %v", err)
 	}
@@ -244,5 +247,201 @@ func TestE2E_CancelBooking(t *testing.T) {
 	code, _ = doJSONAuth(t, "POST", fmt.Sprintf("/bookings/%s/cancel", bookingID), adminToken, nil)
 	if code != 403 {
 		t.Errorf("admin cancel: status %d, want 403", code)
+	}
+}
+
+func TestE2E_ConcurrentGenerationAndBooking(t *testing.T) {
+	admin, user := getToken(t, "admin"), getToken(t, "user")
+	code, body := doJSONAuth(t, "POST", "/rooms/create", admin, map[string]string{"name": "E2E concurrency"})
+	if code != 201 {
+		t.Fatalf("room: %d %v", code, body)
+	}
+	roomID := body["room"].(map[string]any)["id"].(string)
+	schedulePath := fmt.Sprintf("/rooms/%s/schedule/create", roomID)
+	schedule := map[string]any{"daysOfWeek": []int{1, 2, 3, 4, 5, 6, 7}, "startTime": "9:00", "endTime": "10:00"}
+	results := parallelRequests(t, "POST", schedulePath, admin, schedule)
+	created := 0
+	for _, result := range results {
+		switch result.code {
+		case 201:
+			created++
+		case 409:
+		default:
+			t.Fatalf("schedule race: %#v", result)
+		}
+	}
+	if created != 1 {
+		t.Fatalf("schedule winners=%d", created)
+	}
+	date := time.Now().UTC().AddDate(0, 0, 60).Format("2006-01-02")
+	slotPath := fmt.Sprintf("/rooms/%s/slots/list?date=%s", roomID, date)
+	results = parallelRequests(t, "GET", slotPath, user, nil)
+	var slotID string
+	for _, result := range results {
+		if result.code != 200 {
+			t.Fatalf("slots race: %#v", result)
+		}
+		slots := result.body["slots"].([]any)
+		if len(slots) != 2 {
+			t.Fatalf("slots count=%d", len(slots))
+		}
+		id := slots[0].(map[string]any)["id"].(string)
+		if slotID == "" {
+			slotID = id
+		}
+		if slotID != id {
+			t.Fatal("concurrent requests returned unstable UUID")
+		}
+	}
+	results = parallelRequests(t, "POST", "/bookings/create", user, map[string]string{"slotId": slotID})
+	created = 0
+	for _, result := range results {
+		switch result.code {
+		case 201:
+			created++
+		case 409:
+		default:
+			t.Fatalf("booking race: %#v", result)
+		}
+	}
+	if created != 1 {
+		t.Fatalf("booking winners=%d", created)
+	}
+}
+
+type requestResult struct {
+	code int
+	body map[string]any
+	err  error
+}
+
+func parallelRequests(t *testing.T, method, path, token string, body any) []requestResult {
+	t.Helper()
+	encoded, err := json.Marshal(body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const count = 12
+	results := make(chan requestResult, count)
+	start := make(chan struct{})
+	var wg sync.WaitGroup
+	for range count {
+		wg.Go(func() {
+			<-start
+			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			defer cancel()
+			req, err := http.NewRequestWithContext(ctx, method, baseURL()+path, bytes.NewReader(encoded))
+			if err != nil {
+				results <- requestResult{err: err}
+				return
+			}
+			req.Header.Set("Authorization", "Bearer "+token)
+			req.Header.Set("Content-Type", "application/json")
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				results <- requestResult{err: err}
+				return
+			}
+			defer resp.Body.Close()
+			result := requestResult{code: resp.StatusCode}
+			result.err = json.NewDecoder(resp.Body).Decode(&result.body)
+			results <- result
+		})
+	}
+	close(start)
+	wg.Wait()
+	close(results)
+	all := make([]requestResult, 0, count)
+	for result := range results {
+		if result.err != nil {
+			t.Fatal(result.err)
+		}
+		all = append(all, result)
+	}
+	return all
+}
+
+func TestE2E_RegistrationOwnershipAndValidation(t *testing.T) {
+	admin := getToken(t, "admin")
+	var ownerToken, otherToken string
+	for i, role := range []string{"user", "user", "admin"} {
+		email := fmt.Sprintf("e2e-%d-%d@example.com", time.Now().UnixNano(), i)
+		registration := map[string]string{"email": email, "password": "password", "role": role}
+		code, body := doJSON(t, "POST", "/register", registration)
+		if code != 201 || body["user"].(map[string]any)["role"] != role {
+			t.Fatalf("registration: %d %v", code, body)
+		}
+		code, body = doJSON(t, "POST", "/register", registration)
+		if code != 400 || body["error"].(map[string]any)["code"] != "INVALID_REQUEST" {
+			t.Fatalf("duplicate email: %d %v", code, body)
+		}
+		code, body = doJSON(t, "POST", "/login", registration)
+		if code != 200 {
+			t.Fatalf("login: %d %v", code, body)
+		}
+		token := body["token"].(string)
+		switch i {
+		case 0:
+			ownerToken = token
+		case 1:
+			otherToken = token
+		case 2:
+			admin = token
+		}
+	}
+	code, body := doJSONAuth(t, "POST", "/rooms/create", admin, map[string]string{"name": "E2E ownership"})
+	if code != 201 {
+		t.Fatalf("registered admin create: %d %v", code, body)
+	}
+	roomID := body["room"].(map[string]any)["id"].(string)
+	code, body = doJSONAuth(t, "POST", fmt.Sprintf("/rooms/%s/schedule/create", roomID), admin, map[string]any{"daysOfWeek": []int{1, 2, 3, 4, 5, 6, 7}, "startTime": "09:00", "endTime": "10:00"})
+	if code != 201 {
+		t.Fatalf("schedule: %d %v", code, body)
+	}
+	date := time.Now().UTC().AddDate(0, 0, 1).Format("2006-01-02")
+	code, body = doJSONAuth(t, "GET", fmt.Sprintf("/rooms/%s/slots/list?date=%s", roomID, date), ownerToken, nil)
+	if code != 200 {
+		t.Fatalf("slots: %d %v", code, body)
+	}
+	slotID := body["slots"].([]any)[0].(map[string]any)["id"].(string)
+	code, body = doJSONAuth(t, "POST", "/bookings/create", ownerToken, map[string]string{"slotId": slotID})
+	if code != 201 {
+		t.Fatalf("booking: %d %v", code, body)
+	}
+	bookingID := body["booking"].(map[string]any)["id"].(string)
+	cancelPath := fmt.Sprintf("/bookings/%s/cancel", bookingID)
+	if code, _ := doJSONAuth(t, "POST", cancelPath, otherToken, nil); code != 403 {
+		t.Fatalf("nonowner cancellation=%d", code)
+	}
+	for range 2 {
+		code, body := doJSONAuth(t, "POST", cancelPath, ownerToken, nil)
+		if code != 200 || body["booking"].(map[string]any)["status"] != "cancelled" {
+			t.Fatalf("cancel: %d %v", code, body)
+		}
+	}
+	code, body = doJSONAuth(t, "GET", "/bookings/my", ownerToken, nil)
+	if code != 200 {
+		t.Fatalf("my: %d %v", code, body)
+	}
+	my := body["bookings"].([]any)
+	if len(my) != 1 || my[0].(map[string]any)["status"] != "cancelled" {
+		t.Fatalf("cancelled future booking missing: %v", body)
+	}
+	for _, tt := range []struct {
+		method, path, token string
+		body                any
+	}{
+		{"POST", "/rooms/create", admin, map[string]any{"name": "overflow", "capacity": 2147483648}},
+		{"POST", "/rooms/invalid/schedule/create", admin, map[string]any{}}, {"GET", "/rooms/invalid/slots/list?date=" + date, ownerToken, nil},
+		{"POST", "/bookings/create", ownerToken, map[string]string{"slotId": "invalid"}}, {"POST", "/bookings/invalid/cancel", ownerToken, nil},
+		{"GET", "/bookings/list?page=abc", admin, nil}, {"GET", "/bookings/list?page=0", admin, nil}, {"GET", "/bookings/list?pageSize=101", admin, nil}, {"GET", "/bookings/list?page=9223372036854775807&pageSize=100", admin, nil},
+		{"POST", "/register", "", map[string]string{"email": "invalid", "password": "pass", "role": "user"}},
+		{"POST", "/register", "", map[string]string{"email": "valid@example.com", "password": "pass"}},
+		{"POST", "/register", "", map[string]string{"email": "valid@example.com", "password": strings.Repeat("x", 73), "role": "user"}},
+	} {
+		code, body := doJSONAuth(t, tt.method, tt.path, tt.token, tt.body)
+		if code != 400 {
+			t.Errorf("%s %s: %d %v", tt.method, tt.path, code, body)
+		}
 	}
 }
