@@ -1,77 +1,85 @@
-run:
-  timeout: 3m
-
+version: "2"
 linters:
   enable:
-    - errcheck
-    - govet
-    - staticcheck
-    - gosimple
-    - ineffassign
-    - unused
-    - typecheck
     - bodyclose
+    - errorlint
     - gocritic
-    - gofmt
-    - goimports
-    - revive
     - misspell
+    - nilerr
+    - noctx
     - prealloc
+    - revive
+    - rowserrcheck
+    - sqlclosecheck
     - unconvert
     - unparam
-    - nilerr
-    - errorlint
-    - noctx
-    - sqlclosecheck
-    - rowserrcheck
-
-linters-settings:
-  govet:
-    shadow: true
-  revive:
+  settings:
+    errorlint:
+      errorf: true
+      asserts: true
+      comparison: true
+    gocritic:
+      disabled-checks:
+        - httpNoBody
+        - unnamedResult
+      enabled-tags:
+        - diagnostic
+        - style
+        - performance
+    misspell:
+      locale: US
+      ignore-rules:
+        - cancelled
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+        - name: context-keys-type
+        - name: dot-imports
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: exported
+          disabled: true
+        - name: increment-decrement
+        - name: var-naming
+        - name: range
+        - name: receiver-naming
+        - name: indent-error-flow
+        - name: empty-block
+        - name: superfluous-else
+        - name: unreachable-code
+        - name: redefines-builtin-id
+  exclusions:
+    generated: lax
     rules:
-      - name: blank-imports
-      - name: context-as-argument
-      - name: context-keys-type
-      - name: dot-imports
-      - name: error-return
-      - name: error-strings
-      - name: error-naming
-      - name: exported
-        disabled: true
-      - name: increment-decrement
-      - name: var-naming
-      - name: range
-      - name: receiver-naming
-      - name: indent-error-flow
-      - name: empty-block
-      - name: superfluous-else
-      - name: unreachable-code
-      - name: redefines-builtin-id
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - style
-      - performance
-    disabled-checks:
-      - httpNoBody
-      - unnamedResult
-  errorlint:
-    errorf: true
-    asserts: true
-    comparison: true
-  misspell:
-    locale: US
-    ignore-words:
-      - cancelled
-
+      - linters:
+          - revive
+        path: ^internal/db/postgres\.go$
+        text: 'blank-imports:'
+      - linters:
+          - noctx
+        path: _test\.go
+        text: net/http/httptest.NewRequest must not be called
+      - linters:
+          - bodyclose
+          - errcheck
+          - unparam
+        path: _test\.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
 issues:
-  exclude-use-default: false
   max-issues-per-linter: 0
   max-same-issues: 0
-  exclude-rules:
-    - path: _test\.go
-      linters:
-        - errcheck
-        - unparam
-        - bodyclose
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$

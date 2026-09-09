@@ -1,0 +1,11 @@
+.git
+.idea
+.vscode
+.claude
+.codex
+.agents
+.env
+.DS_Store
+*.out
+*.test
+coverage.*
