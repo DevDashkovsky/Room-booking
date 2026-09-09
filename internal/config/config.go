@@ -23,8 +23,8 @@ func Load() *Config {
 
 func getEnvInt(key string, fallback int) int {
 	if v := os.Getenv(key); v != "" {
-		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			return n
+		if n, err := strconv.ParseInt(v, 10, 32); err == nil && n > 0 {
+			return int(n)
 		}
 	}
 	return fallback

@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
-	_ "github.com/jackc/pgx/v5/stdlib" // pgx driver for database/sql
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 )
 
@@ -22,6 +24,11 @@ func Connect(ctx context.Context, databaseURL string, maxConns int32) (*Pool, er
 	}
 	if maxConns > 0 {
 		cfg.MaxConns = maxConns
+	}
+
+	cfg.AfterConnect = func(_ context.Context, conn *pgx.Conn) error {
+		conn.TypeMap().RegisterType(&pgtype.Type{Name: "timestamptz", OID: pgtype.TimestamptzOID, Codec: &pgtype.TimestamptzCodec{ScanLocation: time.UTC}})
+		return nil
 	}
 
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
