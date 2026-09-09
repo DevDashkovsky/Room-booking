@@ -68,7 +68,7 @@ func TestValidateSchedule(t *testing.T) {
 func TestGenerateSlots(t *testing.T) {
 	schedule := &domain.Schedule{
 		RoomID:     "room-1",
-		DaysOfWeek: []int{1}, // Monday
+		DaysOfWeek: []int{1},
 		StartTime:  "09:00",
 		EndTime:    "11:00",
 	}
@@ -91,7 +91,7 @@ func TestGenerateSlots(t *testing.T) {
 func TestGenerateSlotsMultipleDays(t *testing.T) {
 	schedule := &domain.Schedule{
 		RoomID:     "room-1",
-		DaysOfWeek: []int{1, 3, 5}, // Mon, Wed, Fri
+		DaysOfWeek: []int{1, 3, 5},
 		StartTime:  "10:00",
 		EndTime:    "11:00",
 	}
@@ -127,6 +127,11 @@ func TestParseHHMM(t *testing.T) {
 		ok    bool
 	}{
 		{"09:00", 9, 0, true},
+		{"9:00", 9, 0, true},
+		{"+9:00", 0, 0, false},
+		{"09:+1", 0, 0, false},
+		{"09:1", 0, 0, false},
+		{"009:00", 0, 0, false},
 		{"23:59", 23, 59, true},
 		{"00:00", 0, 0, true},
 		{"24:00", 0, 0, false},
@@ -158,11 +163,10 @@ func TestValidateSchedule_NegativeMinutes(t *testing.T) {
 func TestGenerateSlots_NoMatchingDays(t *testing.T) {
 	schedule := &domain.Schedule{
 		RoomID:     "room-1",
-		DaysOfWeek: []int{6}, // Saturday
+		DaysOfWeek: []int{6},
 		StartTime:  "09:00",
 		EndTime:    "10:00",
 	}
-	// 2024-06-10 is Monday, check 5 days Mon-Fri, no Saturday
 	from := time.Date(2024, 6, 10, 0, 0, 0, 0, time.UTC)
 	slots := generateSlots(schedule, from, 5)
 	if len(slots) != 0 {

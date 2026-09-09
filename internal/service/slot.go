@@ -44,6 +44,10 @@ func (s *SlotService) List(ctx context.Context, roomID string, date time.Time) (
 		return []domain.Slot{}, nil
 	}
 
+	if err := s.slotRepo.BulkCreate(ctx, generateSlots(schedule, date.UTC(), 1)); err != nil {
+		return nil, fmt.Errorf("generate slots: %w", err)
+	}
+
 	slots, err := s.slotRepo.ListByRoomAndDate(ctx, roomID, date)
 	if err != nil {
 		return nil, fmt.Errorf("list slots: %w", err)

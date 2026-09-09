@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -24,14 +26,19 @@ func (r *SlotRepository) BulkCreate(ctx context.Context, slots []domain.Slot) er
 		return nil
 	}
 
-	_, err := r.pool.CopyFrom(
-		ctx,
-		pgx.Identifier{"slots"},
-		[]string{"room_id", "start_at", "end_at"},
-		pgx.CopyFromSlice(len(slots), func(i int) ([]any, error) {
-			return []any{slots[i].RoomID, slots[i].Start, slots[i].End}, nil
-		}),
-	)
+	var query strings.Builder
+	query.WriteString("INSERT INTO slots (room_id, start_at, end_at) VALUES ")
+	args := make([]any, 0, len(slots)*3)
+	for i, slot := range slots {
+		if i > 0 {
+			query.WriteByte(',')
+		}
+		fmt.Fprintf(&query, "($%d,$%d,$%d)", i*3+1, i*3+2, i*3+3)
+		args = append(args, slot.RoomID, slot.Start, slot.End)
+	}
+	query.WriteString(" ON CONFLICT (room_id, start_at) DO NOTHING")
+	_, err := r.pool.Exec(ctx, query.String(), args...)
+
 	return err
 }
 
@@ -43,7 +50,7 @@ func (r *SlotRepository) ListByRoomAndDate(ctx context.Context, roomID string, d
 		`SELECT s.id, s.room_id, s.start_at, s.end_at
 		 FROM slots s
 		 LEFT JOIN bookings b ON b.slot_id = s.id AND b.status = 'active'
-		 WHERE s.room_id = $1 AND s.start_at >= $2 AND s.start_at < $3 AND b.id IS NULL
+		 WHERE s.room_id = $1 AND s.start_at >= $2 AND s.start_at < $3 AND s.start_at >= NOW() AND b.id IS NULL
 		 ORDER BY s.start_at`,
 		roomID, dayStart, dayEnd,
 	)

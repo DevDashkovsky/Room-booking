@@ -14,18 +14,15 @@ import (
 type ScheduleService struct {
 	scheduleRepo *repository.ScheduleRepository
 	roomRepo     *repository.RoomRepository
-	slotRepo     *repository.SlotRepository
 }
 
 func NewScheduleService(
 	scheduleRepo *repository.ScheduleRepository,
 	roomRepo *repository.RoomRepository,
-	slotRepo *repository.SlotRepository,
 ) *ScheduleService {
 	return &ScheduleService{
 		scheduleRepo: scheduleRepo,
 		roomRepo:     roomRepo,
-		slotRepo:     slotRepo,
 	}
 }
 
@@ -42,21 +39,8 @@ func (s *ScheduleService) Create(ctx context.Context, schedule *domain.Schedule)
 		return domain.ErrRoomNotFound
 	}
 
-	exists, err := s.scheduleRepo.Exists(ctx, schedule.RoomID)
-	if err != nil {
-		return fmt.Errorf("check schedule exists: %w", err)
-	}
-	if exists {
-		return domain.ErrScheduleExists
-	}
-
 	if err := s.scheduleRepo.Create(ctx, schedule); err != nil {
 		return fmt.Errorf("create schedule: %w", err)
-	}
-
-	slots := generateSlots(schedule, time.Now().UTC(), 30)
-	if err := s.slotRepo.BulkCreate(ctx, slots); err != nil {
-		return fmt.Errorf("create slots: %w", err)
 	}
 
 	return nil
@@ -87,8 +71,15 @@ func validateSchedule(s *domain.Schedule) error {
 
 func parseHHMM(t string) (int, int, bool) {
 	parts := strings.Split(t, ":")
-	if len(parts) != 2 {
+	if len(parts) != 2 || len(parts[0]) < 1 || len(parts[0]) > 2 || len(parts[1]) != 2 {
 		return 0, 0, false
+	}
+	for _, part := range parts {
+		for _, c := range part {
+			if c < '0' || c > '9' {
+				return 0, 0, false
+			}
+		}
 	}
 	h, err1 := strconv.Atoi(parts[0])
 	m, err2 := strconv.Atoi(parts[1])

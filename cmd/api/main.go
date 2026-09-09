@@ -21,8 +21,6 @@ import (
 
 func main() {
 	logger := zerolog.New(os.Stdout).With().Timestamp().Logger()
-	// Делаем тот же логгер глобальным, чтобы handler-слой (handleServiceError)
-	// писал внутренние ошибки в общий поток.
 	log.Logger = logger
 
 	cfg := config.Load()
@@ -55,7 +53,7 @@ func main() {
 
 	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret)
 	roomSvc := service.NewRoomService(roomRepo)
-	scheduleSvc := service.NewScheduleService(scheduleRepo, roomRepo, slotRepo)
+	scheduleSvc := service.NewScheduleService(scheduleRepo, roomRepo)
 	slotSvc := service.NewSlotService(slotRepo, roomRepo, scheduleRepo)
 	bookingSvc := service.NewBookingService(bookingRepo, slotRepo)
 
