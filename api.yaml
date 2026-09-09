@@ -60,6 +60,7 @@ components:
                 - BOOKING_NOT_FOUND
                 - FORBIDDEN
                 - SCHEDULE_EXISTS
+                - UNAVAILABLE
                 - INTERNAL_ERROR
             message:
               type: string
@@ -217,9 +218,20 @@ components:
           description: Общее количество записей
 
 paths:
-  # ──────────────────────────────────────────────────────────────
-  # Auth
-  # ──────────────────────────────────────────────────────────────
+
+  /ready:
+    get:
+      summary: Проверка готовности базы данных
+      security: []
+      responses:
+        '200':
+          description: База данных доступна
+        '503':
+          description: База данных недоступна
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /register:
     post:
@@ -349,9 +361,6 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/InternalErrorResponse' }
 
-  # ──────────────────────────────────────────────────────────────
-  # Rooms
-  # ──────────────────────────────────────────────────────────────
 
   /rooms/list:
     get:
@@ -433,9 +442,6 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/InternalErrorResponse' }
 
-  # ──────────────────────────────────────────────────────────────
-  # Schedules
-  # ──────────────────────────────────────────────────────────────
 
   /rooms/{roomId}/schedule/create:
     post:
@@ -500,9 +506,6 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/InternalErrorResponse' }
 
-  # ──────────────────────────────────────────────────────────────
-  # Slots
-  # ──────────────────────────────────────────────────────────────
 
   /rooms/{roomId}/slots/list:
     get:
@@ -556,9 +559,6 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/InternalErrorResponse' }
 
-  # ──────────────────────────────────────────────────────────────
-  # Bookings
-  # ──────────────────────────────────────────────────────────────
 
   /bookings/create:
     post:
