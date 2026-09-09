@@ -129,7 +129,7 @@ func TestBookingHandler_Cancel_AdminForbidden(t *testing.T) {
 func TestBookingHandler_Cancel_EmptyBookingId(t *testing.T) {
 	h := NewBookingHandler(nil)
 	r := httptest.NewRequest(http.MethodPost, "/bookings/cancel", nil)
-	r = r.WithContext(ctxWithRole("user")) // no chi context → bookingId == ""
+	r = r.WithContext(ctxWithRole("user"))
 	w := httptest.NewRecorder()
 	h.Cancel(w, r)
 	if w.Code != http.StatusBadRequest {
@@ -151,7 +151,7 @@ func TestRoomHandler_Create_InvalidJSON(t *testing.T) {
 func TestScheduleHandler_Create_AdminMissingRoomId(t *testing.T) {
 	h := NewScheduleHandler(nil)
 	r := httptest.NewRequest(http.MethodPost, "/rooms//schedule/create", strings.NewReader(`{}`))
-	r = r.WithContext(ctxWithRole("admin")) // no chi context → roomId == ""
+	r = r.WithContext(ctxWithRole("admin"))
 	w := httptest.NewRecorder()
 	h.Create(w, r)
 	if w.Code != http.StatusBadRequest {
@@ -173,7 +173,7 @@ func TestScheduleHandler_Create_AdminInvalidJSON(t *testing.T) {
 func TestSlotHandler_List_MissingRoomId(t *testing.T) {
 	h := NewSlotHandler(nil)
 	r := httptest.NewRequest(http.MethodGet, "/rooms//slots/list?date=2024-01-01", nil)
-	r = r.WithContext(ctxWithRole("user")) // no chi context → roomId == ""
+	r = r.WithContext(ctxWithRole("user"))
 	w := httptest.NewRecorder()
 	h.List(w, r)
 	if w.Code != http.StatusBadRequest {

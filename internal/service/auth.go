@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/mail"
 
 	"golang.org/x/crypto/bcrypt"
 
@@ -21,8 +22,9 @@ func NewAuthService(userRepo *repository.UserRepository, jwtSecret string) *Auth
 	return &AuthService{userRepo: userRepo, jwtSecret: jwtSecret}
 }
 
-func (s *AuthService) Register(ctx context.Context, email, password string) (*domain.User, error) {
-	if email == "" || password == "" {
+func (s *AuthService) Register(ctx context.Context, email, password, role string) (*domain.User, error) {
+	address, emailErr := mail.ParseAddress(email)
+	if emailErr != nil || address.Address != email || password == "" || len(password) > 72 || (role != "admin" && role != "user") {
 		return nil, domain.ErrInvalidRequest
 	}
 
@@ -42,7 +44,7 @@ func (s *AuthService) Register(ctx context.Context, email, password string) (*do
 	u := &domain.User{
 		Email:        email,
 		PasswordHash: string(hash),
-		Role:         "user",
+		Role:         role,
 	}
 
 	if err := s.userRepo.Create(ctx, u); err != nil {

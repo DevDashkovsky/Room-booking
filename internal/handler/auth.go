@@ -51,6 +51,7 @@ func (h *AuthHandler) DummyLogin(w http.ResponseWriter, r *http.Request) {
 
 func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 	var req struct {
+		Role     string `json:"role"`
 		Email    string `json:"email"`
 		Password string `json:"password"`
 	}
@@ -58,7 +59,7 @@ func (h *AuthHandler) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	user, err := h.authSvc.Register(r.Context(), req.Email, req.Password)
+	user, err := h.authSvc.Register(r.Context(), req.Email, req.Password, req.Role)
 	if err != nil {
 		handleServiceError(w, err)
 		return

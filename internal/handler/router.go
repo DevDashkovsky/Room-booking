@@ -23,7 +23,8 @@ type Deps struct {
 func NewRouter(d Deps) http.Handler {
 	r := chi.NewRouter()
 
-	r.Get("/_info", func(w http.ResponseWriter, req *http.Request) {
+	r.Get("/_info", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	r.Get("/ready", func(w http.ResponseWriter, req *http.Request) {
 		if d.Ping != nil {
 			ctx, cancel := context.WithTimeout(req.Context(), 2*time.Second)
 			defer cancel()

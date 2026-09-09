@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"math"
 	"net/http"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/DevDashkovsky/room-booking/internal/domain"
 	"github.com/DevDashkovsky/room-booking/internal/middleware"
 	"github.com/DevDashkovsky/room-booking/internal/service"
 )
@@ -33,8 +35,8 @@ func (h *BookingHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.SlotID == "" {
-		respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "slotId is required")
+	if !domain.ValidUUID(req.SlotID) {
+		respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "slotId must be a UUID")
 		return
 	}
 
@@ -56,7 +58,11 @@ func (h *BookingHandler) ListAll(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	page, pageSize := parsePagination(r)
+	page, pageSize, ok := parsePagination(r)
+	if !ok {
+		respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "invalid pagination")
+		return
+	}
 
 	result, err := h.bookingSvc.ListAll(r.Context(), page, pageSize)
 	if err != nil {
@@ -96,8 +102,8 @@ func (h *BookingHandler) Cancel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	bookingID := chi.URLParam(r, "bookingId")
-	if bookingID == "" {
-		respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "missing bookingId")
+	if !domain.ValidUUID(bookingID) {
+		respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "bookingId must be a UUID")
 		return
 	}
 
@@ -112,25 +118,29 @@ func (h *BookingHandler) Cancel(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]any{"booking": booking})
 }
 
-func parsePagination(r *http.Request) (page, pageSize int) {
-	page = 1
-	pageSize = 20
-
-	if v := r.URL.Query().Get("page"); v != "" {
-		if p, err := strconv.Atoi(v); err == nil && p >= 1 {
-			page = p
+func parsePagination(r *http.Request) (page, pageSize int, ok bool) {
+	page, pageSize = 1, 20
+	for key, dst := range map[string]*int{"page": &page, "pageSize": &pageSize} {
+		values, exists := r.URL.Query()[key]
+		if !exists {
+			continue
 		}
-	}
-
-	if v := r.URL.Query().Get("pageSize"); v != "" {
-		if ps, err := strconv.Atoi(v); err == nil && ps >= 1 {
-			pageSize = ps
+		if len(values) != 1 || values[0] == "" {
+			return 0, 0, false
 		}
+		for _, c := range values[0] {
+			if c < '0' || c > '9' {
+				return 0, 0, false
+			}
+		}
+		value, err := strconv.Atoi(values[0])
+		if err != nil || value < 1 {
+			return 0, 0, false
+		}
+		*dst = value
 	}
-
-	if pageSize > 100 {
-		pageSize = 100
+	if pageSize > 100 || page-1 > math.MaxInt/pageSize {
+		return 0, 0, false
 	}
-
-	return page, pageSize
+	return page, pageSize, true
 }

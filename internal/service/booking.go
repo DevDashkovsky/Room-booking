@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/DevDashkovsky/room-booking/internal/domain"
@@ -65,6 +66,9 @@ type ListAllResult struct {
 }
 
 func (s *BookingService) ListAll(ctx context.Context, page, pageSize int) (*ListAllResult, error) {
+	if page < 1 || pageSize < 1 || pageSize > 100 || page-1 > math.MaxInt/pageSize {
+		return nil, domain.ErrInvalidRequest
+	}
 	total, err := s.bookingRepo.Count(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("count bookings: %w", err)

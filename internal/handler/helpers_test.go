@@ -73,3 +73,14 @@ func TestReadBodyJSON_Invalid(t *testing.T) {
 		t.Errorf("status = %d", w.Code)
 	}
 }
+
+func TestReadBodyJSON_RejectsTrailingAndLargeBodies(t *testing.T) {
+	for _, body := range []string{`{} {}`, `{} true`, `{} trailing`, `{"value":"` + strings.Repeat("x", 1<<20) + `"}`, `{}` + strings.Repeat(" ", 1<<20)} {
+		r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
+		w := httptest.NewRecorder()
+		var dst map[string]any
+		if readBodyJSON(w, r, &dst) || w.Code != 400 {
+			t.Errorf("accepted invalid body with length %d", len(body))
+		}
+	}
+}

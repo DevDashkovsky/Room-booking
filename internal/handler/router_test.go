@@ -48,7 +48,27 @@ func TestRouter_Info_DBDown(t *testing.T) {
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/_info", nil))
 
-	if w.Code != http.StatusServiceUnavailable {
-		t.Errorf("/_info status = %d, want 503", w.Code)
+	if w.Code != http.StatusOK {
+		t.Errorf("/_info status = %d, want 200", w.Code)
+	}
+}
+
+func TestRouter_Readiness(t *testing.T) {
+	for _, healthy := range []bool{false, true} {
+		router := NewRouter(Deps{AuthH: NewAuthHandler("secret", nil), Ping: func(context.Context) error {
+			if healthy {
+				return nil
+			}
+			return errors.New("db down")
+		}})
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/ready", nil))
+		want := 503
+		if healthy {
+			want = 200
+		}
+		if w.Code != want {
+			t.Errorf("healthy=%v status=%d want=%d", healthy, w.Code, want)
+		}
 	}
 }

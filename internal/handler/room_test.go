@@ -301,12 +301,8 @@ func TestBookingCancel_UserMissingId(t *testing.T) {
 
 func TestParsePagination_ZeroPage(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/bookings/list?page=0&pageSize=5", nil)
-	page, pageSize := parsePagination(r)
-	if page != 1 {
-		t.Errorf("page = %d, want 1 (default for 0)", page)
-	}
-	if pageSize != 5 {
-		t.Errorf("pageSize = %d, want 5", pageSize)
+	if _, _, ok := parsePagination(r); ok {
+		t.Error("expected invalid pagination")
 	}
 }
 

@@ -13,12 +13,12 @@ import (
 const testSecret = "test-secret"
 
 func TestAuth_ValidToken(t *testing.T) {
-	token, _ := myjwt.GenerateToken("user-1", "admin", testSecret)
+	token, _ := myjwt.GenerateToken("00000000-0000-0000-0000-000000000001", "admin", testSecret)
 
 	handler := Auth(testSecret)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		uid := GetUserID(r.Context())
 		role := GetRole(r.Context())
-		if uid != "user-1" {
+		if uid != "00000000-0000-0000-0000-000000000001" {
 			t.Errorf("userID = %q", uid)
 		}
 		if role != "admin" {

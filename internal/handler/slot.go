@@ -6,6 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
+	"github.com/DevDashkovsky/room-booking/internal/domain"
 	"github.com/DevDashkovsky/room-booking/internal/service"
 )
 
@@ -19,8 +20,8 @@ func NewSlotHandler(slotSvc *service.SlotService) *SlotHandler {
 
 func (h *SlotHandler) List(w http.ResponseWriter, r *http.Request) {
 	roomID := chi.URLParam(r, "roomId")
-	if roomID == "" {
-		respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "missing roomId")
+	if !domain.ValidUUID(roomID) {
+		respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "roomId must be a UUID")
 		return
 	}
 

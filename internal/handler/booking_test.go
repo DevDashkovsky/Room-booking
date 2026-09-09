@@ -6,43 +6,22 @@ import (
 	"testing"
 )
 
-func TestParsePagination_Defaults(t *testing.T) {
-	r := httptest.NewRequest(http.MethodGet, "/bookings/list", nil)
-	page, pageSize := parsePagination(r)
-	if page != 1 {
-		t.Errorf("page = %d, want 1", page)
-	}
-	if pageSize != 20 {
-		t.Errorf("pageSize = %d, want 20", pageSize)
-	}
-}
-
-func TestParsePagination_Custom(t *testing.T) {
-	r := httptest.NewRequest(http.MethodGet, "/bookings/list?page=3&pageSize=50", nil)
-	page, pageSize := parsePagination(r)
-	if page != 3 {
-		t.Errorf("page = %d, want 3", page)
-	}
-	if pageSize != 50 {
-		t.Errorf("pageSize = %d, want 50", pageSize)
-	}
-}
-
-func TestParsePagination_MaxPageSize(t *testing.T) {
-	r := httptest.NewRequest(http.MethodGet, "/bookings/list?pageSize=999", nil)
-	_, pageSize := parsePagination(r)
-	if pageSize != 100 {
-		t.Errorf("pageSize = %d, want 100 (capped)", pageSize)
-	}
-}
-
-func TestParsePagination_InvalidValues(t *testing.T) {
-	r := httptest.NewRequest(http.MethodGet, "/bookings/list?page=abc&pageSize=-1", nil)
-	page, pageSize := parsePagination(r)
-	if page != 1 {
-		t.Errorf("page = %d, want 1 (default)", page)
-	}
-	if pageSize != 20 {
-		t.Errorf("pageSize = %d, want 20 (default)", pageSize)
+func TestParsePagination(t *testing.T) {
+	for _, tt := range []struct {
+		query      string
+		page, size int
+		ok         bool
+	}{
+		{"", 1, 20, true}, {"?page=3&pageSize=50", 3, 50, true}, {"?pageSize=100", 1, 100, true},
+		{"?pageSize=101", 0, 0, false}, {"?page=0", 0, 0, false}, {"?pageSize=0", 0, 0, false},
+		{"?page=abc", 0, 0, false}, {"?pageSize=-1", 0, 0, false}, {"?page=", 0, 0, false},
+		{"?page=9223372036854775807&pageSize=100", 0, 0, false}, {"?page=99999999999999999999999", 0, 0, false}, {"?page=1&page=2", 0, 0, false},
+	} {
+		t.Run(tt.query, func(t *testing.T) {
+			p, s, ok := parsePagination(httptest.NewRequest(http.MethodGet, "/bookings/list"+tt.query, nil))
+			if p != tt.page || s != tt.size || ok != tt.ok {
+				t.Fatalf("got %d %d %v", p, s, ok)
+			}
+		})
 	}
 }

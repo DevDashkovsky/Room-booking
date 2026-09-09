@@ -29,7 +29,6 @@ func (r *UserRepository) Create(ctx context.Context, u *domain.User) error {
 
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
-		// Гонка при конкурентной регистрации одного email.
 		return domain.ErrEmailExists
 	}
 	return err

@@ -28,8 +28,8 @@ func (h *ScheduleHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	roomID := chi.URLParam(r, "roomId")
-	if roomID == "" {
-		respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "missing roomId")
+	if !domain.ValidUUID(roomID) {
+		respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "roomId must be a UUID")
 		return
 	}
 
@@ -77,7 +77,7 @@ func handleServiceError(w http.ResponseWriter, err error) {
 	case errors.Is(err, domain.ErrUnauthorized):
 		respondError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid credentials")
 	case errors.Is(err, domain.ErrEmailExists):
-		respondError(w, http.StatusConflict, "EMAIL_EXISTS", "user with this email already exists")
+		respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "user with this email already exists")
 	default:
 		log.Error().Err(err).Msg("unhandled service error")
 		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")

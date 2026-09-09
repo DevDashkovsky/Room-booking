@@ -32,7 +32,6 @@ func (r *BookingRepository) Create(ctx context.Context, b *domain.Booking) error
 
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
-		// Гонка: вторая активная бронь на тот же слот отсечена partial unique index.
 		return domain.ErrSlotAlreadyBooked
 	}
 	return err
@@ -80,7 +79,7 @@ func (r *BookingRepository) ListAll(ctx context.Context, limit, offset int) ([]d
 	rows, err := r.pool.Query(ctx,
 		`SELECT id, slot_id, user_id, status, conference_link, created_at
 		 FROM bookings
-		 ORDER BY created_at DESC
+		 ORDER BY created_at DESC, id DESC
 		 LIMIT $1 OFFSET $2`,
 		limit, offset,
 	)
@@ -105,7 +104,7 @@ func (r *BookingRepository) ListByUser(ctx context.Context, userID string) ([]do
 		`SELECT b.id, b.slot_id, b.user_id, b.status, b.conference_link, b.created_at
 		 FROM bookings b
 		 JOIN slots s ON s.id = b.slot_id
-		 WHERE b.user_id = $1 AND b.status = 'active' AND s.start_at >= $2
+		 WHERE b.user_id = $1 AND s.start_at >= $2
 		 ORDER BY s.start_at`,
 		userID, time.Now().UTC(),
 	)

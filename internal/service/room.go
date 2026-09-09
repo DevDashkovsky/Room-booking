@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"math"
 
 	"github.com/DevDashkovsky/room-booking/internal/domain"
 	"github.com/DevDashkovsky/room-booking/internal/repository"
@@ -17,7 +18,7 @@ func NewRoomService(roomRepo *repository.RoomRepository) *RoomService {
 }
 
 func (s *RoomService) Create(ctx context.Context, room *domain.Room) error {
-	if room.Name == "" {
+	if room.Name == "" || (room.Capacity != nil && (*room.Capacity < math.MinInt32 || *room.Capacity > math.MaxInt32)) {
 		return domain.ErrInvalidRequest
 	}
 	if err := s.roomRepo.Create(ctx, room); err != nil {
