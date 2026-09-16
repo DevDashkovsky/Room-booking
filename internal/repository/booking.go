@@ -25,16 +25,65 @@ func NewBookingRepository(pool *pgxpool.Pool) *BookingRepository {
 func (r *BookingRepository) Create(ctx context.Context, b *domain.Booking) error {
 	err := r.pool.QueryRow(ctx,
 		`INSERT INTO bookings (slot_id, user_id, conference_link)
-		 VALUES ($1, $2, $3)
+		 SELECT s.id, $2, $3
+		 FROM slots s
+		 WHERE s.id = $1 AND s.start_at >= NOW()
 		 RETURNING id, status, created_at`,
 		b.SlotID, b.UserID, b.ConferenceLink,
 	).Scan(&b.ID, &b.Status, &b.CreatedAt)
 
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.ErrInvalidRequest
+	}
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
 		return domain.ErrSlotAlreadyBooked
 	}
 	return err
+}
+
+func (r *BookingRepository) ListAllPage(ctx context.Context, limit, offset int) ([]domain.Booking, int, error) {
+	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.RepeatableRead, AccessMode: pgx.ReadOnly})
+	if err != nil {
+		return nil, 0, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	var total int
+	if err := tx.QueryRow(ctx, `SELECT COUNT(*) FROM bookings`).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	rows, err := tx.Query(ctx,
+		`SELECT id, slot_id, user_id, status, conference_link, created_at
+		 FROM bookings
+		 ORDER BY created_at DESC, id DESC
+		 LIMIT $1 OFFSET $2`,
+		limit, offset,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	bookings := make([]domain.Booking, 0)
+	for rows.Next() {
+		var b domain.Booking
+		if err := rows.Scan(&b.ID, &b.SlotID, &b.UserID, &b.Status, &b.ConferenceLink, &b.CreatedAt); err != nil {
+			rows.Close()
+			return nil, 0, err
+		}
+		bookings = append(bookings, b)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return nil, 0, err
+	}
+	rows.Close()
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, 0, err
+	}
+	return bookings, total, nil
 }
 
 func (r *BookingRepository) GetByID(ctx context.Context, id string) (*domain.Booking, error) {
@@ -51,52 +100,6 @@ func (r *BookingRepository) GetByID(ctx context.Context, id string) (*domain.Boo
 		return nil, err
 	}
 	return &b, nil
-}
-
-func (r *BookingRepository) ActiveBySlotID(ctx context.Context, slotID string) (*domain.Booking, error) {
-	var b domain.Booking
-	err := r.pool.QueryRow(ctx,
-		`SELECT id, slot_id, user_id, status, conference_link, created_at
-		 FROM bookings WHERE slot_id = $1 AND status = 'active'`,
-		slotID,
-	).Scan(&b.ID, &b.SlotID, &b.UserID, &b.Status, &b.ConferenceLink, &b.CreatedAt)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	return &b, nil
-}
-
-func (r *BookingRepository) Count(ctx context.Context) (int, error) {
-	var count int
-	err := r.pool.QueryRow(ctx, `SELECT COUNT(*) FROM bookings`).Scan(&count)
-	return count, err
-}
-
-func (r *BookingRepository) ListAll(ctx context.Context, limit, offset int) ([]domain.Booking, error) {
-	rows, err := r.pool.Query(ctx,
-		`SELECT id, slot_id, user_id, status, conference_link, created_at
-		 FROM bookings
-		 ORDER BY created_at DESC, id DESC
-		 LIMIT $1 OFFSET $2`,
-		limit, offset,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	bookings := make([]domain.Booking, 0)
-	for rows.Next() {
-		var b domain.Booking
-		if err := rows.Scan(&b.ID, &b.SlotID, &b.UserID, &b.Status, &b.ConferenceLink, &b.CreatedAt); err != nil {
-			return nil, err
-		}
-		bookings = append(bookings, b)
-	}
-	return bookings, rows.Err()
 }
 
 func (r *BookingRepository) ListByUser(ctx context.Context, userID string) ([]domain.Booking, error) {

@@ -7,15 +7,26 @@ import (
 	"time"
 
 	"github.com/DevDashkovsky/room-booking/internal/domain"
-	"github.com/DevDashkovsky/room-booking/internal/repository"
 )
 
-type BookingService struct {
-	bookingRepo *repository.BookingRepository
-	slotRepo    *repository.SlotRepository
+type bookingRepository interface {
+	Create(context.Context, *domain.Booking) error
+	ListAllPage(context.Context, int, int) ([]domain.Booking, int, error)
+	ListByUser(context.Context, string) ([]domain.Booking, error)
+	GetByID(context.Context, string) (*domain.Booking, error)
+	Cancel(context.Context, string) error
 }
 
-func NewBookingService(bookingRepo *repository.BookingRepository, slotRepo *repository.SlotRepository) *BookingService {
+type slotFinder interface {
+	GetByID(context.Context, string) (*domain.Slot, error)
+}
+
+type BookingService struct {
+	bookingRepo bookingRepository
+	slotRepo    slotFinder
+}
+
+func NewBookingService(bookingRepo bookingRepository, slotRepo slotFinder) *BookingService {
 	return &BookingService{
 		bookingRepo: bookingRepo,
 		slotRepo:    slotRepo,
@@ -33,14 +44,6 @@ func (s *BookingService) Create(ctx context.Context, slotID, userID string, crea
 
 	if slot.Start.Before(time.Now().UTC()) {
 		return nil, domain.ErrInvalidRequest
-	}
-
-	existing, err := s.bookingRepo.ActiveBySlotID(ctx, slotID)
-	if err != nil {
-		return nil, fmt.Errorf("check active booking: %w", err)
-	}
-	if existing != nil {
-		return nil, domain.ErrSlotAlreadyBooked
 	}
 
 	b := &domain.Booking{
@@ -69,15 +72,10 @@ func (s *BookingService) ListAll(ctx context.Context, page, pageSize int) (*List
 	if page < 1 || pageSize < 1 || pageSize > 100 || page-1 > math.MaxInt/pageSize {
 		return nil, domain.ErrInvalidRequest
 	}
-	total, err := s.bookingRepo.Count(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("count bookings: %w", err)
-	}
-
 	offset := (page - 1) * pageSize
-	bookings, err := s.bookingRepo.ListAll(ctx, pageSize, offset)
+	bookings, total, err := s.bookingRepo.ListAllPage(ctx, pageSize, offset)
 	if err != nil {
-		return nil, fmt.Errorf("list bookings: %w", err)
+		return nil, fmt.Errorf("list bookings page: %w", err)
 	}
 
 	return &ListAllResult{
