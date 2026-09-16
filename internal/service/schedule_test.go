@@ -194,3 +194,11 @@ func TestValidateSchedule_Day7Sunday(t *testing.T) {
 		t.Errorf("day 7 (Sunday) should be valid: %v", err)
 	}
 }
+
+func TestUTCDay(t *testing.T) {
+	value := time.Date(2026, 9, 16, 23, 45, 0, 0, time.FixedZone("UTC+7", 7*60*60))
+	want := time.Date(2026, 9, 16, 0, 0, 0, 0, time.UTC)
+	if got := utcDay(value); !got.Equal(want) {
+		t.Fatalf("utcDay() = %v, want %v", got, want)
+	}
+}

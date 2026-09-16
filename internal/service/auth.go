@@ -10,15 +10,23 @@ import (
 
 	"github.com/DevDashkovsky/room-booking/internal/domain"
 	"github.com/DevDashkovsky/room-booking/internal/jwt"
-	"github.com/DevDashkovsky/room-booking/internal/repository"
 )
 
+const maxConcurrentBcrypt = 4
+
+var bcryptSlots = make(chan struct{}, maxConcurrentBcrypt)
+
+type userRepository interface {
+	Create(context.Context, *domain.User) error
+	GetByEmail(context.Context, string) (*domain.User, error)
+}
+
 type AuthService struct {
-	userRepo  *repository.UserRepository
+	userRepo  userRepository
 	jwtSecret string
 }
 
-func NewAuthService(userRepo *repository.UserRepository, jwtSecret string) *AuthService {
+func NewAuthService(userRepo userRepository, jwtSecret string) *AuthService {
 	return &AuthService{userRepo: userRepo, jwtSecret: jwtSecret}
 }
 
@@ -36,7 +44,13 @@ func (s *AuthService) Register(ctx context.Context, email, password, role string
 		return nil, domain.ErrEmailExists
 	}
 
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if !acquireBcrypt(ctx) {
+		return nil, domain.ErrUnavailable
+	}
+	hash, err := func() ([]byte, error) {
+		defer releaseBcrypt()
+		return bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	}()
 	if err != nil {
 		return nil, fmt.Errorf("hash password: %w", err)
 	}
@@ -70,7 +84,14 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 		return "", domain.ErrUnauthorized
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password)); err != nil {
+	if !acquireBcrypt(ctx) {
+		return "", domain.ErrUnavailable
+	}
+	err = func() error {
+		defer releaseBcrypt()
+		return bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password))
+	}()
+	if err != nil {
 		return "", domain.ErrUnauthorized
 	}
 
@@ -80,4 +101,19 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 	}
 
 	return token, nil
+}
+
+func acquireBcrypt(ctx context.Context) bool {
+	select {
+	case bcryptSlots <- struct{}{}:
+		return true
+	case <-ctx.Done():
+		return false
+	default:
+		return false
+	}
+}
+
+func releaseBcrypt() {
+	<-bcryptSlots
 }

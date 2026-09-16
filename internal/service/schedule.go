@@ -8,17 +8,24 @@ import (
 	"time"
 
 	"github.com/DevDashkovsky/room-booking/internal/domain"
-	"github.com/DevDashkovsky/room-booking/internal/repository"
 )
 
+type scheduleRepository interface {
+	Create(context.Context, *domain.Schedule) error
+}
+
+type roomFinder interface {
+	GetByID(context.Context, string) (*domain.Room, error)
+}
+
 type ScheduleService struct {
-	scheduleRepo *repository.ScheduleRepository
-	roomRepo     *repository.RoomRepository
+	scheduleRepo scheduleRepository
+	roomRepo     roomFinder
 }
 
 func NewScheduleService(
-	scheduleRepo *repository.ScheduleRepository,
-	roomRepo *repository.RoomRepository,
+	scheduleRepo scheduleRepository,
+	roomRepo roomFinder,
 ) *ScheduleService {
 	return &ScheduleService{
 		scheduleRepo: scheduleRepo,

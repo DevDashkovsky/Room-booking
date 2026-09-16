@@ -12,4 +12,5 @@ var (
 	ErrScheduleExists    = errors.New("SCHEDULE_EXISTS")
 	ErrUnauthorized      = errors.New("UNAUTHORIZED")
 	ErrEmailExists       = errors.New("EMAIL_EXISTS")
+	ErrUnavailable       = errors.New("UNAVAILABLE")
 )

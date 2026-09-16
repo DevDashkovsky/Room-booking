@@ -68,3 +68,20 @@ func TestAuthService_RegisterValidation(t *testing.T) {
 		}
 	}
 }
+
+func TestBcryptConcurrencyLimit(t *testing.T) {
+	for range maxConcurrentBcrypt {
+		if !acquireBcrypt(context.Background()) {
+			t.Fatal("failed to acquire an available bcrypt slot")
+		}
+	}
+	defer func() {
+		for range maxConcurrentBcrypt {
+			releaseBcrypt()
+		}
+	}()
+
+	if acquireBcrypt(context.Background()) {
+		t.Fatal("acquired more bcrypt slots than allowed")
+	}
+}
