@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	chimiddleware "github.com/go-chi/chi/v5/middleware"
 
 	"github.com/DevDashkovsky/room-booking/internal/middleware"
 )
@@ -22,6 +23,14 @@ type Deps struct {
 
 func NewRouter(d Deps) http.Handler {
 	r := chi.NewRouter()
+	r.Use(chimiddleware.RequestID)
+	r.Use(observeRequests)
+	r.NotFound(func(w http.ResponseWriter, _ *http.Request) {
+		respondError(w, http.StatusNotFound, "NOT_FOUND", "route not found")
+	})
+	r.MethodNotAllowed(func(w http.ResponseWriter, _ *http.Request) {
+		respondError(w, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed")
+	})
 
 	r.Get("/_info", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	r.Get("/ready", func(w http.ResponseWriter, req *http.Request) {

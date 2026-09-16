@@ -30,6 +30,7 @@ func readBodyJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
 	const maxBodyBytes = 1 << 20
 	r.Body = http.MaxBytesReader(w, r.Body, maxBodyBytes)
 	decoder := json.NewDecoder(r.Body)
+	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(dst); err != nil {
 		respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "invalid JSON or body exceeds 1 MiB")
 		return false

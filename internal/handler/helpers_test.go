@@ -84,3 +84,14 @@ func TestReadBodyJSON_RejectsTrailingAndLargeBodies(t *testing.T) {
 		}
 	}
 }
+
+func TestReadBodyJSON_RejectsUnknownFields(t *testing.T) {
+	r := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(`{"name":"room","roomId":"unexpected"}`))
+	w := httptest.NewRecorder()
+	var dst struct {
+		Name string `json:"name"`
+	}
+	if readBodyJSON(w, r, &dst) || w.Code != http.StatusBadRequest {
+		t.Fatalf("unknown field accepted: status=%d", w.Code)
+	}
+}
