@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"math"
 	"net/http"
 	"strconv"
@@ -12,11 +13,18 @@ import (
 	"github.com/DevDashkovsky/room-booking/internal/service"
 )
 
-type BookingHandler struct {
-	bookingSvc *service.BookingService
+type bookingService interface {
+	Create(context.Context, string, string, bool) (*domain.Booking, error)
+	ListAll(context.Context, int, int) (*service.ListAllResult, error)
+	ListMy(context.Context, string) ([]domain.Booking, error)
+	Cancel(context.Context, string, string) (*domain.Booking, error)
 }
 
-func NewBookingHandler(bookingSvc *service.BookingService) *BookingHandler {
+type BookingHandler struct {
+	bookingSvc bookingService
+}
+
+func NewBookingHandler(bookingSvc bookingService) *BookingHandler {
 	return &BookingHandler{bookingSvc: bookingSvc}
 }
 

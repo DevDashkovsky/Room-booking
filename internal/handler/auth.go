@@ -1,10 +1,11 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 
+	"github.com/DevDashkovsky/room-booking/internal/domain"
 	"github.com/DevDashkovsky/room-booking/internal/jwt"
-	"github.com/DevDashkovsky/room-booking/internal/service"
 )
 
 const (
@@ -12,12 +13,17 @@ const (
 	regularUserID = "00000000-0000-0000-0000-000000000002"
 )
 
-type AuthHandler struct {
-	jwtSecret string
-	authSvc   *service.AuthService
+type authService interface {
+	Register(context.Context, string, string, string) (*domain.User, error)
+	Login(context.Context, string, string) (string, error)
 }
 
-func NewAuthHandler(secret string, authSvc *service.AuthService) *AuthHandler {
+type AuthHandler struct {
+	jwtSecret string
+	authSvc   authService
+}
+
+func NewAuthHandler(secret string, authSvc authService) *AuthHandler {
 	return &AuthHandler{jwtSecret: secret, authSvc: authSvc}
 }
 

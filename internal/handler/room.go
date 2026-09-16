@@ -1,18 +1,23 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/DevDashkovsky/room-booking/internal/domain"
 	"github.com/DevDashkovsky/room-booking/internal/middleware"
-	"github.com/DevDashkovsky/room-booking/internal/service"
 )
 
-type RoomHandler struct {
-	roomSvc *service.RoomService
+type roomService interface {
+	Create(context.Context, *domain.Room) error
+	List(context.Context) ([]domain.Room, error)
 }
 
-func NewRoomHandler(roomSvc *service.RoomService) *RoomHandler {
+type RoomHandler struct {
+	roomSvc roomService
+}
+
+func NewRoomHandler(roomSvc roomService) *RoomHandler {
 	return &RoomHandler{roomSvc: roomSvc}
 }
 

@@ -1,20 +1,24 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 
 	"github.com/DevDashkovsky/room-booking/internal/domain"
-	"github.com/DevDashkovsky/room-booking/internal/service"
 )
 
-type SlotHandler struct {
-	slotSvc *service.SlotService
+type slotService interface {
+	List(context.Context, string, time.Time) ([]domain.Slot, error)
 }
 
-func NewSlotHandler(slotSvc *service.SlotService) *SlotHandler {
+type SlotHandler struct {
+	slotSvc slotService
+}
+
+func NewSlotHandler(slotSvc slotService) *SlotHandler {
 	return &SlotHandler{slotSvc: slotSvc}
 }
 

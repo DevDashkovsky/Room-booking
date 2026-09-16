@@ -23,6 +23,7 @@ func TestHandleServiceError(t *testing.T) {
 		{domain.ErrEmailExists, 400, "INVALID_REQUEST"},
 		{domain.ErrForbidden, 403, "FORBIDDEN"},
 		{domain.ErrUnauthorized, 401, "UNAUTHORIZED"},
+		{domain.ErrUnavailable, 503, "UNAVAILABLE"},
 		{errors.New("unknown"), 500, "INTERNAL_ERROR"},
 	}
 

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
@@ -9,14 +10,17 @@ import (
 
 	"github.com/DevDashkovsky/room-booking/internal/domain"
 	"github.com/DevDashkovsky/room-booking/internal/middleware"
-	"github.com/DevDashkovsky/room-booking/internal/service"
 )
 
-type ScheduleHandler struct {
-	scheduleSvc *service.ScheduleService
+type scheduleService interface {
+	Create(context.Context, *domain.Schedule) error
 }
 
-func NewScheduleHandler(scheduleSvc *service.ScheduleService) *ScheduleHandler {
+type ScheduleHandler struct {
+	scheduleSvc scheduleService
+}
+
+func NewScheduleHandler(scheduleSvc scheduleService) *ScheduleHandler {
 	return &ScheduleHandler{scheduleSvc: scheduleSvc}
 }
 
@@ -78,6 +82,8 @@ func handleServiceError(w http.ResponseWriter, err error) {
 		respondError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid credentials")
 	case errors.Is(err, domain.ErrEmailExists):
 		respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "user with this email already exists")
+	case errors.Is(err, domain.ErrUnavailable):
+		respondError(w, http.StatusServiceUnavailable, "UNAVAILABLE", "service is temporarily unavailable")
 	default:
 		log.Error().Err(err).Msg("unhandled service error")
 		respondError(w, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
