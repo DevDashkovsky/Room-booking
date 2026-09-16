@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -11,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
+	gooselock "github.com/pressly/goose/v3/lock"
 )
 
 type Pool struct {
@@ -55,14 +57,30 @@ func (p *Pool) PgxPool() *pgxpool.Pool {
 	return p.pool
 }
 
-func RunMigrations(databaseURL, migrationsDir string) error {
+func RunMigrations(ctx context.Context, databaseURL, migrationsDir string) error {
 	db, err := sql.Open("pgx", databaseURL)
 	if err != nil {
 		return fmt.Errorf("open db for migrations: %w", err)
 	}
 	defer func() { _ = db.Close() }()
 
-	if err := goose.Up(db, migrationsDir); err != nil {
+	locker, err := gooselock.NewPostgresSessionLocker(gooselock.WithLockTimeout(1, 30))
+	if err != nil {
+		return fmt.Errorf("create migration locker: %w", err)
+	}
+	provider, err := goose.NewProvider(
+		goose.DialectPostgres,
+		db,
+		os.DirFS(migrationsDir),
+		goose.WithSessionLocker(locker),
+	)
+	if err != nil {
+		return fmt.Errorf("create migration provider: %w", err)
+	}
+
+	migrationCtx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	if _, err := provider.Up(migrationCtx); err != nil {
 		return fmt.Errorf("run migrations: %w", err)
 	}
 	return nil
