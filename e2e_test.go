@@ -375,7 +375,8 @@ func TestE2E_RegistrationOwnershipAndValidation(t *testing.T) {
 		if code != 400 || body["error"].(map[string]any)["code"] != "INVALID_REQUEST" {
 			t.Fatalf("duplicate email: %d %v", code, body)
 		}
-		code, body = doJSON(t, "POST", "/login", registration)
+		login := map[string]string{"email": email, "password": registration["password"]}
+		code, body = doJSON(t, "POST", "/login", login)
 		if code != 200 {
 			t.Fatalf("login: %d %v", code, body)
 		}
@@ -432,7 +433,10 @@ func TestE2E_RegistrationOwnershipAndValidation(t *testing.T) {
 		body                any
 	}{
 		{"POST", "/rooms/create", admin, map[string]any{"name": "overflow", "capacity": 2147483648}},
+		{"POST", "/rooms/create", admin, map[string]any{"name": "invalid\x00name"}},
+		{"POST", "/rooms/" + roomID + "/schedule/create", admin, map[string]any{"roomId": roomID, "daysOfWeek": []int{1}, "startTime": "09:00", "endTime": "10:00"}},
 		{"POST", "/rooms/invalid/schedule/create", admin, map[string]any{}}, {"GET", "/rooms/invalid/slots/list?date=" + date, ownerToken, nil},
+		{"GET", "/rooms/" + roomID + "/slots/list?date=" + time.Now().UTC().AddDate(0, 0, maxE2ESlotHorizonDays+1).Format("2006-01-02"), ownerToken, nil},
 		{"POST", "/bookings/create", ownerToken, map[string]string{"slotId": "invalid"}}, {"POST", "/bookings/invalid/cancel", ownerToken, nil},
 		{"GET", "/bookings/list?page=abc", admin, nil}, {"GET", "/bookings/list?page=0", admin, nil}, {"GET", "/bookings/list?pageSize=101", admin, nil}, {"GET", "/bookings/list?page=9223372036854775807&pageSize=100", admin, nil},
 		{"POST", "/register", "", map[string]string{"email": "invalid", "password": "pass", "role": "user"}},
@@ -444,4 +448,20 @@ func TestE2E_RegistrationOwnershipAndValidation(t *testing.T) {
 			t.Errorf("%s %s: %d %v", tt.method, tt.path, code, body)
 		}
 	}
+
+	for _, tt := range []struct {
+		method, path string
+		status       int
+		code         string
+	}{
+		{http.MethodGet, "/unknown", http.StatusNotFound, "NOT_FOUND"},
+		{http.MethodGet, "/dummyLogin", http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED"},
+	} {
+		status, body := doJSON(t, tt.method, tt.path, nil)
+		if status != tt.status || body["error"].(map[string]any)["code"] != tt.code {
+			t.Errorf("%s %s: %d %v", tt.method, tt.path, status, body)
+		}
+	}
 }
+
+const maxE2ESlotHorizonDays = 365
