@@ -82,7 +82,7 @@ func handleServiceError(w http.ResponseWriter, err error) {
 		respondError(w, http.StatusUnauthorized, "UNAUTHORIZED", "invalid credentials")
 	case errors.Is(err, domain.ErrEmailExists):
 		respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "user with this email already exists")
-	case errors.Is(err, domain.ErrUnavailable):
+	case errors.Is(err, domain.ErrUnavailable), errors.Is(err, context.DeadlineExceeded):
 		respondError(w, http.StatusServiceUnavailable, "UNAVAILABLE", "service is temporarily unavailable")
 	default:
 		log.Error().Err(err).Msg("unhandled service error")

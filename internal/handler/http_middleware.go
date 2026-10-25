@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"runtime/debug"
 	"time"
@@ -9,6 +10,17 @@ import (
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/rs/zerolog/log"
 )
+
+// Keep database work within the server's 15-second write deadline.
+const requestTimeout = 10 * time.Second
+
+func withRequestDeadline(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), requestTimeout)
+		defer cancel()
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
 
 func observeRequests(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
