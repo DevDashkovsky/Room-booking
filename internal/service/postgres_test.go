@@ -320,7 +320,15 @@ func TestPostgres_HTTPDeadlineCancelsBlockedQuery(t *testing.T) {
 	if body.Error.Code != "UNAVAILABLE" {
 		t.Fatalf("deadline error: %+v", body)
 	}
-	if pool.Stat().AcquiredConns() != 1 {
-		t.Fatalf("request retained connection after deadline: %d", pool.Stat().AcquiredConns())
+	// pgx destroys canceled connections asynchronously. Verify that all capacity
+	// except the locking transaction can be acquired within a bounded interval.
+	capacityCtx, capacityCancel := context.WithTimeout(t.Context(), 2*time.Second)
+	defer capacityCancel()
+	for i := int32(0); i < pool.Config().MaxConns-1; i++ {
+		conn, err := pool.Acquire(capacityCtx)
+		if err != nil {
+			t.Fatalf("request retained pool capacity after deadline: %v", err)
+		}
+		defer conn.Release()
 	}
 }
