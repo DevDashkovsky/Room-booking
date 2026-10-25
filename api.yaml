@@ -344,6 +344,7 @@ paths:
                   format: email
                 password:
                   type: string
+                  description: Не более 72 байт UTF-8; превышение возвращает 401 UNAUTHORIZED.
       responses:
         '200':
           description: Успешная авторизация
