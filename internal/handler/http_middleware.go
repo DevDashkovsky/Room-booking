@@ -49,14 +49,19 @@ func observeRequests(next http.Handler) http.Handler {
 
 		defer func() {
 			if recovered := recover(); recovered != nil {
+				if recovered == http.ErrAbortHandler {
+					panic(http.ErrAbortHandler)
+				}
 				log.Error().
 					Interface("panic", recovered).
 					Bytes("stack", debug.Stack()).
 					Str("request_id", requestID).
 					Msg("panic recovered")
-				if wrapped.Status() == 0 {
-					respondError(wrapped, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
+				if wrapped.Status() != 0 {
+					// A partial response cannot be replaced with a JSON error.
+					panic(http.ErrAbortHandler)
 				}
+				respondError(wrapped, http.StatusInternalServerError, "INTERNAL_ERROR", "internal server error")
 			}
 		}()
 
