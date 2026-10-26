@@ -14,6 +14,7 @@ import (
 
 type scheduleService interface {
 	Create(context.Context, *domain.Schedule) error
+	Update(context.Context, *domain.Schedule) error
 }
 
 type ScheduleHandler struct {
@@ -25,6 +26,14 @@ func NewScheduleHandler(scheduleSvc scheduleService) *ScheduleHandler {
 }
 
 func (h *ScheduleHandler) Create(w http.ResponseWriter, r *http.Request) {
+	h.write(w, r, false)
+}
+
+func (h *ScheduleHandler) Update(w http.ResponseWriter, r *http.Request) {
+	h.write(w, r, true)
+}
+
+func (h *ScheduleHandler) write(w http.ResponseWriter, r *http.Request, update bool) {
 	role := middleware.GetRole(r.Context())
 	if role != "admin" {
 		respondError(w, http.StatusForbidden, "FORBIDDEN", "admin role required")
@@ -53,13 +62,20 @@ func (h *ScheduleHandler) Create(w http.ResponseWriter, r *http.Request) {
 		EndTime:    req.EndTime,
 	}
 
-	err := h.scheduleSvc.Create(r.Context(), schedule)
+	var err error
+	status := http.StatusCreated
+	if update {
+		err = h.scheduleSvc.Update(r.Context(), schedule)
+		status = http.StatusOK
+	} else {
+		err = h.scheduleSvc.Create(r.Context(), schedule)
+	}
 	if err != nil {
 		handleServiceError(w, err)
 		return
 	}
 
-	respondJSON(w, http.StatusCreated, map[string]any{"schedule": schedule})
+	respondJSON(w, status, map[string]any{"schedule": schedule})
 }
 
 func handleServiceError(w http.ResponseWriter, err error) {
@@ -73,7 +89,11 @@ func handleServiceError(w http.ResponseWriter, err error) {
 	case errors.Is(err, domain.ErrBookingNotFound):
 		respondError(w, http.StatusNotFound, "BOOKING_NOT_FOUND", "booking not found")
 	case errors.Is(err, domain.ErrScheduleExists):
-		respondError(w, http.StatusConflict, "SCHEDULE_EXISTS", "schedule for this room already exists and cannot be changed")
+		respondError(w, http.StatusConflict, "SCHEDULE_EXISTS", "schedule for this room already exists")
+	case errors.Is(err, domain.ErrScheduleNotFound):
+		respondError(w, http.StatusNotFound, "SCHEDULE_NOT_FOUND", "schedule not found")
+	case errors.Is(err, domain.ErrScheduleBookingConflict):
+		respondError(w, http.StatusConflict, "SCHEDULE_BOOKING_CONFLICT", "schedule conflicts with an active booking")
 	case errors.Is(err, domain.ErrSlotAlreadyBooked):
 		respondError(w, http.StatusConflict, "SLOT_ALREADY_BOOKED", "slot is already booked")
 	case errors.Is(err, domain.ErrForbidden):

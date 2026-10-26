@@ -74,7 +74,7 @@ func TestGenerateSlots(t *testing.T) {
 	}
 
 	from := time.Date(2024, 6, 10, 0, 0, 0, 0, time.UTC)
-	slots := generateSlots(schedule, from, 7)
+	slots := domain.GenerateSlots(schedule, from, 7)
 
 	if len(slots) != 4 {
 		t.Fatalf("got %d slots, want 4", len(slots))
@@ -97,7 +97,7 @@ func TestGenerateSlotsMultipleDays(t *testing.T) {
 	}
 
 	from := time.Date(2024, 6, 10, 0, 0, 0, 0, time.UTC)
-	slots := generateSlots(schedule, from, 7)
+	slots := domain.GenerateSlots(schedule, from, 7)
 
 	if len(slots) != 6 {
 		t.Fatalf("got %d slots, want 6", len(slots))
@@ -113,7 +113,7 @@ func TestGenerateSlotsSunday(t *testing.T) {
 	}
 
 	from := time.Date(2024, 6, 9, 0, 0, 0, 0, time.UTC)
-	slots := generateSlots(schedule, from, 1)
+	slots := domain.GenerateSlots(schedule, from, 1)
 
 	if len(slots) != 1 {
 		t.Fatalf("got %d slots, want 1", len(slots))
@@ -146,9 +146,9 @@ func TestParseHHMM(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		h, m, ok := parseHHMM(tt.input)
+		h, m, ok := domain.ParseScheduleTime(tt.input)
 		if ok != tt.ok || (ok && (h != tt.h || m != tt.m)) {
-			t.Errorf("parseHHMM(%q) = %d,%d,%v want %d,%d,%v", tt.input, h, m, ok, tt.h, tt.m, tt.ok)
+			t.Errorf("domain.ParseScheduleTime(%q) = %d,%d,%v want %d,%d,%v", tt.input, h, m, ok, tt.h, tt.m, tt.ok)
 		}
 	}
 }
@@ -168,7 +168,7 @@ func TestGenerateSlots_NoMatchingDays(t *testing.T) {
 		EndTime:    "10:00",
 	}
 	from := time.Date(2024, 6, 10, 0, 0, 0, 0, time.UTC)
-	slots := generateSlots(schedule, from, 5)
+	slots := domain.GenerateSlots(schedule, from, 5)
 	if len(slots) != 0 {
 		t.Errorf("got %d slots, want 0", len(slots))
 	}
@@ -182,7 +182,7 @@ func TestGenerateSlots_AllWeekDays(t *testing.T) {
 		EndTime:    "10:30",
 	}
 	from := time.Date(2024, 6, 10, 0, 0, 0, 0, time.UTC)
-	slots := generateSlots(schedule, from, 7)
+	slots := domain.GenerateSlots(schedule, from, 7)
 	if len(slots) != 7 {
 		t.Fatalf("got %d slots, want 7 (one per day)", len(slots))
 	}

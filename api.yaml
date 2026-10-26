@@ -63,6 +63,8 @@ components:
                 - BOOKING_NOT_FOUND
                 - FORBIDDEN
                 - SCHEDULE_EXISTS
+                - SCHEDULE_NOT_FOUND
+                - SCHEDULE_BOOKING_CONFLICT
                 - UNAVAILABLE
                 - INTERNAL_ERROR
                 - METHOD_NOT_ALLOWED
@@ -518,7 +520,7 @@ paths:
     post:
       operationId: createRoomSchedule
       tags: [Schedules]
-      summary: Создать расписание переговорки (только admin, только один раз). Длительность слота 30 мин. После создания расписание изменить нельзя.
+      summary: Создать расписание переговорки (только admin, только один раз). Длительность слота 30 мин. Изменение через отдельный endpoint update.
       description: >
         Доступно только роли admin.
         Расписание можно создать только один раз для каждой переговорки.
@@ -565,14 +567,93 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
         '409':
-          description: Расписание для переговорки уже создано, изменение не допускается
+          description: Расписание для переговорки уже создано; используйте update
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
               example:
                 error:
                   code: SCHEDULE_EXISTS
-                  message: schedule for this room already exists and cannot be changed
+                  message: schedule for this room already exists
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InternalErrorResponse' }
+
+
+        '503':
+          description: Истёк бюджет обработки запроса
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /rooms/{roomId}/schedule/update:
+    post:
+      operationId: updateRoomSchedule
+      tags: [Schedules]
+      summary: Изменить существующее расписание переговорки (только admin).
+      description: >
+        Доступно только роли admin.
+        Полностью заменяет daysOfWeek, startTime и endTime, сохраняя ID расписания.
+        Новые правила действуют сразу, время трактуется в UTC.
+        Если активная будущая или ещё не завершившаяся бронь не соответствует
+        новой получасовой сетке, возвращает 409 SCHEDULE_BOOKING_CONFLICT без изменений.
+        Сдвиг начала сетки также может конфликтовать с бронями внутри новых часов.
+        Отменённые и завершившиеся брони не блокируют изменение, история сохраняется.
+        Совместимые слоты сохраняют UUID; старые slotId вне новой сетки нельзя бронировать.
+        Повторный одинаковый запрос сохраняет ID. Изменение атомарно с проверкой броней.
+        Поле `daysOfWeek` должно содержать значения от 1 до 7 (1=Пн, 7=Вс).
+        При передаче значений вне этого диапазона возвращается 400.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduleCreateRequest'
+      responses:
+        '200':
+          description: Расписание сохранено
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [schedule]
+                properties:
+                  schedule:
+                    $ref: '#/components/schemas/Schedule'
+        '400':
+          description: Неверный запрос (в т.ч. недопустимые значения daysOfWeek)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Доступ запрещён (требуется роль admin)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Переговорка или её расписание не найдены (ROOM_NOT_FOUND / SCHEDULE_NOT_FOUND)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '409':
+          description: Новое расписание конфликтует с действующей бронью
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+              example:
+                error:
+                  code: SCHEDULE_BOOKING_CONFLICT
+                  message: schedule conflicts with an active booking
         '500':
           description: Внутренняя ошибка сервера
           content:
@@ -592,7 +673,7 @@ paths:
       tags: [Slots]
       summary: Список доступных для бронирования слотов по переговорке и дате (admin и user). Наиболее нагруженный эндпоинт.
       description: >
-        Возвращает слоты, не занятые активной бронью, для указанной переговорки на указанную дату.
+        Возвращает слоты действующей сетки расписания, не занятые активной бронью, для указанной переговорки на указанную дату.
         Все даты и время передаются и возвращаются в UTC.
         Параметр `date` является обязательным; при его отсутствии возвращается 400.
         Прошедшие даты возвращают пустой список. Дата не может быть дальше 365 дней от текущей даты.

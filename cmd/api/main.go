@@ -54,7 +54,7 @@ func main() {
 	authSvc := service.NewAuthService(userRepo, cfg.JWTSecret)
 	roomSvc := service.NewRoomService(roomRepo)
 	scheduleSvc := service.NewScheduleService(scheduleRepo, roomRepo)
-	slotSvc := service.NewSlotService(slotRepo, roomRepo, scheduleRepo)
+	slotSvc := service.NewSlotService(slotRepo, roomRepo)
 	bookingSvc := service.NewBookingService(bookingRepo, slotRepo)
 
 	r := handler.NewRouter(handler.Deps{
