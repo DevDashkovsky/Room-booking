@@ -38,3 +38,7 @@ func TestScheduleServiceUpdate(t *testing.T) {
 		}
 	}
 }
+
+func (r *updateScheduleRepo) GetByRoomID(context.Context, string) (*domain.Schedule, error) {
+	return nil, nil
+}

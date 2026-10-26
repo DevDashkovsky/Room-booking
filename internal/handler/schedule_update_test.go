@@ -80,3 +80,7 @@ func TestScheduleUpdateHTTPContract(t *testing.T) {
 		})
 	}
 }
+
+func (r *scheduleUpdateRepository) GetByRoomID(context.Context, string) (*domain.Schedule, error) {
+	return nil, nil
+}

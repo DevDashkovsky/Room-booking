@@ -10,6 +10,7 @@ import (
 type scheduleRepository interface {
 	Create(context.Context, *domain.Schedule) error
 	Update(context.Context, *domain.Schedule) error
+	GetByRoomID(context.Context, string) (*domain.Schedule, error)
 }
 
 type roomFinder interface {
@@ -59,6 +60,27 @@ func (s *ScheduleService) Update(ctx context.Context, schedule *domain.Schedule)
 		return fmt.Errorf("update schedule: %w", err)
 	}
 	return nil
+}
+
+func (s *ScheduleService) Get(ctx context.Context, roomID string) (*domain.Schedule, error) {
+	if !domain.ValidUUID(roomID) {
+		return nil, domain.ErrInvalidRequest
+	}
+	room, err := s.roomRepo.GetByID(ctx, roomID)
+	if err != nil {
+		return nil, fmt.Errorf("get room: %w", err)
+	}
+	if room == nil {
+		return nil, domain.ErrRoomNotFound
+	}
+	schedule, err := s.scheduleRepo.GetByRoomID(ctx, room.ID)
+	if err != nil {
+		return nil, fmt.Errorf("get schedule: %w", err)
+	}
+	if schedule == nil {
+		return nil, domain.ErrScheduleNotFound
+	}
+	return schedule, nil
 }
 
 func validateSchedule(s *domain.Schedule) error {
