@@ -141,7 +141,8 @@ func TestObserveRequests_PreservesAbort(t *testing.T) {
 				panic(http.ErrAbortHandler)
 			}))
 			defer func() {
-				if got := recover(); got != http.ErrAbortHandler {
+				got := recover()
+				if err, ok := got.(error); !ok || !errors.Is(err, http.ErrAbortHandler) {
 					t.Errorf("panic = %v, want ErrAbortHandler", got)
 				}
 			}()
@@ -159,7 +160,9 @@ func TestObserveRequests_PartialResponseAbortsConnection(t *testing.T) {
 	defer server.Close()
 	client := server.Client()
 	client.Timeout = 5 * time.Second
-	resp, err := client.Get(server.URL)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, server.URL, nil)
+	req.RequestURI = ""
+	resp, err := client.Do(req)
 	if err != nil {
 		t.Fatal(err)
 	}

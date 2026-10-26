@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"runtime/debug"
 	"time"
@@ -49,7 +50,7 @@ func observeRequests(next http.Handler) http.Handler {
 
 		defer func() {
 			if recovered := recover(); recovered != nil {
-				if recovered == http.ErrAbortHandler {
+				if err, ok := recovered.(error); ok && errors.Is(err, http.ErrAbortHandler) {
 					panic(http.ErrAbortHandler)
 				}
 				log.Error().

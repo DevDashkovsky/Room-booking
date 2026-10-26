@@ -324,11 +324,17 @@ func TestPostgres_HTTPDeadlineCancelsBlockedQuery(t *testing.T) {
 	// except the locking transaction can be acquired within a bounded interval.
 	capacityCtx, capacityCancel := context.WithTimeout(t.Context(), 2*time.Second)
 	defer capacityCancel()
+	connections := make([]*pgxpool.Conn, 0, pool.Config().MaxConns-1)
+	defer func() {
+		for _, conn := range connections {
+			conn.Release()
+		}
+	}()
 	for i := int32(0); i < pool.Config().MaxConns-1; i++ {
 		conn, err := pool.Acquire(capacityCtx)
 		if err != nil {
 			t.Fatalf("request retained pool capacity after deadline: %v", err)
 		}
-		defer conn.Release()
+		connections = append(connections, conn)
 	}
 }
