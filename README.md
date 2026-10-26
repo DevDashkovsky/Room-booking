@@ -124,7 +124,7 @@ DATABASE_URL='postgres://postgres:postgres@localhost:5432/room_booking?sslmode=d
 | Доступ | Методы |
 |---|---|
 | Без токена | `GET /_info`, `GET /ready`, `POST /dummyLogin`, `POST /register`, `POST /login` |
-| admin и user | `GET /rooms/list`, `GET /rooms/{roomId}/slots/list?date=YYYY-MM-DD` |
+| admin и user | `GET /rooms/list`, `GET /rooms/{roomId}/slots/list?date=YYYY-MM-DD`, `GET /rooms/{roomId}/schedule` |
 | admin | `POST /rooms/create`, `POST /rooms/{roomId}/schedule/create`, `POST /rooms/{roomId}/schedule/update`, `GET /bookings/list?page=1&pageSize=20` |
 | user | `POST /bookings/create`, `GET /bookings/my`, `POST /bookings/{bookingId}/cancel` |
 
@@ -167,7 +167,19 @@ curl -fsS -X POST "$API/bookings/$BOOKING_ID/cancel" \
 
 Ошибки возвращаются в виде `{"error":{"code":"SLOT_ALREADY_BOOKED","message":"slot is already booked"}}`, включая неизвестные маршруты и неподдерживаемые HTTP-методы. Неверные параметры дают `400`, отсутствие действительного токена — `401`, недоступная роль или чужая бронь — `403`, отсутствующий ресурс — `404`, конфликт расписания или активной брони — `409`, временное исчерпание bcrypt-лимита — `503`.
 
-## Изменение расписания
+## Получение и изменение расписания
+
+`GET /rooms/{roomId}/schedule` возвращает `200 {"schedule": ...}` с текущими
+`id`, `roomId`, `daysOfWeek`, `startTime`, `endTime`. Доступен admin и user с JWT;
+время — UTC, формат `HH:MM`. Метод не создаёт слотов. Для формы редактирования
+сначала загрузите расписание этим запросом, затем отправьте полную замену.
+Несуществующая комната даёт `404 ROOM_NOT_FOUND`, комната без расписания —
+`404 SCHEDULE_NOT_FOUND`, неверный UUID — `400`, запрос без JWT — `401`.
+
+```bash
+curl -fsS "$API/rooms/$ROOM_ID/schedule" -H "Authorization: Bearer $ADMIN"
+```
+
 
 Администратор вызывает `POST /rooms/{roomId}/schedule/update` с полным набором
 `daysOfWeek`, `startTime`, `endTime`, как при создании расписания. Ответ —

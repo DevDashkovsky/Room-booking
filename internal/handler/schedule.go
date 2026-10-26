@@ -15,6 +15,7 @@ import (
 type scheduleService interface {
 	Create(context.Context, *domain.Schedule) error
 	Update(context.Context, *domain.Schedule) error
+	Get(context.Context, string) (*domain.Schedule, error)
 }
 
 type ScheduleHandler struct {
@@ -31,6 +32,20 @@ func (h *ScheduleHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 func (h *ScheduleHandler) Update(w http.ResponseWriter, r *http.Request) {
 	h.write(w, r, true)
+}
+
+func (h *ScheduleHandler) Get(w http.ResponseWriter, r *http.Request) {
+	roomID := chi.URLParam(r, "roomId")
+	if !domain.ValidUUID(roomID) {
+		respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "roomId must be a UUID")
+		return
+	}
+	schedule, err := h.scheduleSvc.Get(r.Context(), roomID)
+	if err != nil {
+		handleServiceError(w, err)
+		return
+	}
+	respondJSON(w, http.StatusOK, map[string]any{"schedule": schedule})
 }
 
 func (h *ScheduleHandler) write(w http.ResponseWriter, r *http.Request, update bool) {

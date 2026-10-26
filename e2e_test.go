@@ -584,3 +584,49 @@ func TestE2E_ScheduleUpdate(t *testing.T) {
 		t.Fatal("cancelled booking history lost")
 	}
 }
+
+func TestE2E_ScheduleRead(t *testing.T) {
+	admin, user := getToken(t, "admin"), getToken(t, "user")
+	code, body := doJSONAuth(t, "GET", "/rooms/00000000-0000-0000-0000-000000000099/schedule", user, nil)
+	if code != 404 || body["error"].(map[string]any)["code"] != "ROOM_NOT_FOUND" {
+		t.Fatalf("missing room: %d %v", code, body)
+	}
+	code, body = doJSONAuth(t, "POST", "/rooms/create", admin, map[string]string{"name": "readable schedule"})
+	if code != 201 {
+		t.Fatalf("room: %d %v", code, body)
+	}
+	id := body["room"].(map[string]any)["id"].(string)
+	path := "/rooms/" + strings.ToUpper(id) + "/schedule"
+	code, body = doJSONAuth(t, "GET", path, user, nil)
+	if code != 404 || body["error"].(map[string]any)["code"] != "SCHEDULE_NOT_FOUND" {
+		t.Fatalf("missing schedule: %d %v", code, body)
+	}
+	code, body = doJSONAuth(t, "POST", path+"/create", admin, map[string]any{"daysOfWeek": []int{1, 3}, "startTime": "9:00", "endTime": "18:00"})
+	if code != 201 {
+		t.Fatalf("create: %d %v", code, body)
+	}
+	scheduleID := body["schedule"].(map[string]any)["id"]
+	for _, token := range []string{admin, user} {
+		code, body = doJSONAuth(t, "GET", path, token, nil)
+		if code != 200 {
+			t.Fatalf("read: %d %v", code, body)
+		}
+		schedule := body["schedule"].(map[string]any)
+		if schedule["id"] != scheduleID || schedule["roomId"] != id || schedule["startTime"] != "09:00" || schedule["endTime"] != "18:00" || len(schedule["daysOfWeek"].([]any)) != 2 {
+			t.Fatalf("read contract: %v", schedule)
+		}
+	}
+	code, body = doJSONAuth(t, "POST", path+"/update", admin, map[string]any{"daysOfWeek": []int{2}, "startTime": "10:00", "endTime": "19:00"})
+	if code != 200 {
+		t.Fatalf("update: %d %v", code, body)
+	}
+	code, body = doJSONAuth(t, "GET", path, user, nil)
+	if code != 200 {
+		t.Fatalf("read update: %d %v", code, body)
+	}
+	schedule := body["schedule"].(map[string]any)
+	days := schedule["daysOfWeek"].([]any)
+	if schedule["id"] != scheduleID || schedule["startTime"] != "10:00" || schedule["endTime"] != "19:00" || len(days) != 1 || days[0] != float64(2) {
+		t.Fatalf("stale schedule: %v", schedule)
+	}
+}

@@ -588,6 +588,58 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }
 
+  /rooms/{roomId}/schedule:
+    get:
+      operationId: getRoomSchedule
+      tags: [Schedules]
+      summary: Получить текущее расписание переговорки (admin и user).
+      description: >
+        Возвращает сохранённое расписание с ID, днями недели и временем в UTC.
+        Время нормализовано в HH:MM. Не создаёт расписание или слоты.
+        Отсутствующая комната возвращает ROOM_NOT_FOUND,
+        отсутствие расписания у существующей комнаты — SCHEDULE_NOT_FOUND.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/RoomIdPath'
+      responses:
+        '200':
+          description: Текущее расписание
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [schedule]
+                properties:
+                  schedule:
+                    $ref: '#/components/schemas/Schedule'
+        '400':
+          description: Неверный UUID комнаты
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: Переговорка или её расписание не найдены (ROOM_NOT_FOUND / SCHEDULE_NOT_FOUND)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InternalErrorResponse' }
+
+
+        '503':
+          description: Истёк бюджет обработки запроса
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
   /rooms/{roomId}/schedule/update:
     post:
       operationId: updateRoomSchedule
