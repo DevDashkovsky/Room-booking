@@ -9,32 +9,18 @@ import (
 )
 
 type slotRepository interface {
-	BulkCreate(context.Context, []domain.Slot) error
-	ListByRoomAndDate(context.Context, string, time.Time) ([]domain.Slot, error)
-}
-
-type scheduleFinder interface {
-	GetByRoomID(context.Context, string) (*domain.Schedule, error)
+	ListAvailable(context.Context, string, time.Time) ([]domain.Slot, error)
 }
 
 type SlotService struct {
-	slotRepo     slotRepository
-	roomRepo     roomFinder
-	scheduleRepo scheduleFinder
+	slotRepo slotRepository
+	roomRepo roomFinder
 }
 
 const maxSlotHorizonDays = 365
 
-func NewSlotService(
-	slotRepo slotRepository,
-	roomRepo roomFinder,
-	scheduleRepo scheduleFinder,
-) *SlotService {
-	return &SlotService{
-		slotRepo:     slotRepo,
-		roomRepo:     roomRepo,
-		scheduleRepo: scheduleRepo,
-	}
+func NewSlotService(slotRepo slotRepository, roomRepo roomFinder) *SlotService {
+	return &SlotService{slotRepo: slotRepo, roomRepo: roomRepo}
 }
 
 func (s *SlotService) List(ctx context.Context, roomID string, date time.Time) ([]domain.Slot, error) {
@@ -55,19 +41,7 @@ func (s *SlotService) List(ctx context.Context, roomID string, date time.Time) (
 		return []domain.Slot{}, nil
 	}
 
-	schedule, err := s.scheduleRepo.GetByRoomID(ctx, roomID)
-	if err != nil {
-		return nil, fmt.Errorf("get schedule: %w", err)
-	}
-	if schedule == nil {
-		return []domain.Slot{}, nil
-	}
-
-	if err := s.slotRepo.BulkCreate(ctx, generateSlots(schedule, requestedDay, 1)); err != nil {
-		return nil, fmt.Errorf("generate slots: %w", err)
-	}
-
-	slots, err := s.slotRepo.ListByRoomAndDate(ctx, roomID, requestedDay)
+	slots, err := s.slotRepo.ListAvailable(ctx, roomID, requestedDay)
 	if err != nil {
 		return nil, fmt.Errorf("list slots: %w", err)
 	}

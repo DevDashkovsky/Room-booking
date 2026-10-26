@@ -487,3 +487,100 @@ func TestE2E_LoginPasswordByteLimit(t *testing.T) {
 		}
 	}
 }
+
+func TestE2E_ScheduleUpdate(t *testing.T) {
+	admin, user := getToken(t, "admin"), getToken(t, "user")
+	code, body := doJSONAuth(t, "POST", "/rooms/create", admin, map[string]string{"name": "editable E2E"})
+	if code != 201 {
+		t.Fatalf("create room: %d %v", code, body)
+	}
+	roomID := body["room"].(map[string]any)["id"].(string)
+	path := "/rooms/" + strings.ToUpper(roomID) + "/schedule/update"
+	schedule := func(start, end string) map[string]any {
+		return map[string]any{"daysOfWeek": []int{1, 2, 3, 4, 5, 6, 7}, "startTime": start, "endTime": end}
+	}
+	checkError := func(status int, codeName string, actual int, payload map[string]any) {
+		t.Helper()
+		if actual != status {
+			t.Fatalf("status=%d want=%d body=%v", actual, status, payload)
+		}
+		detail, ok := payload["error"].(map[string]any)
+		if !ok || detail["code"] != codeName {
+			t.Fatalf("error contract: %v", payload)
+		}
+	}
+	code, body = doJSONAuth(t, "POST", path, admin, schedule("09:00", "11:00"))
+	checkError(404, "SCHEDULE_NOT_FOUND", code, body)
+	code, body = doJSONAuth(t, "POST", "/rooms/"+roomID+"/schedule/create", admin, schedule("09:00", "11:00"))
+	if code != 201 {
+		t.Fatalf("create schedule: %d %v", code, body)
+	}
+	scheduleID := body["schedule"].(map[string]any)["id"]
+	code, body = doJSON(t, "POST", path, schedule("09:00", "11:00"))
+	checkError(401, "UNAUTHORIZED", code, body)
+	code, body = doJSONAuth(t, "POST", path, user, schedule("09:00", "11:00"))
+	checkError(403, "FORBIDDEN", code, body)
+	code, body = doJSONAuth(t, "POST", path, admin, schedule("11:00", "09:00"))
+	checkError(400, "INVALID_REQUEST", code, body)
+	date := time.Now().UTC().AddDate(0, 0, 3).Format("2006-01-02")
+	listPath := "/rooms/" + roomID + "/slots/list?date=" + date
+	code, body = doJSONAuth(t, "GET", listPath, user, nil)
+	if code != 200 {
+		t.Fatalf("list: %d %v", code, body)
+	}
+	slots := body["slots"].([]any)
+	if len(slots) != 4 {
+		t.Fatalf("slots=%v", slots)
+	}
+	firstID := slots[0].(map[string]any)["id"].(string)
+	remainingID := slots[2].(map[string]any)["id"].(string)
+	code, body = doJSONAuth(t, "POST", "/bookings/create", user, map[string]string{"slotId": firstID})
+	if code != 201 {
+		t.Fatalf("booking: %d %v", code, body)
+	}
+	bookingID := body["booking"].(map[string]any)["id"].(string)
+	code, body = doJSONAuth(t, "POST", path, admin, schedule("10:00", "11:00"))
+	checkError(409, "SCHEDULE_BOOKING_CONFLICT", code, body)
+	code, body = doJSONAuth(t, "GET", listPath, user, nil)
+	if code != 200 || len(body["slots"].([]any)) != 3 {
+		t.Fatalf("conflict changed slots: %d %v", code, body)
+	}
+	code, body = doJSONAuth(t, "POST", path, admin, schedule("08:00", "11:00"))
+	if code != 200 || body["schedule"].(map[string]any)["id"] != scheduleID {
+		t.Fatalf("compatible update: %d %v", code, body)
+	}
+	code, body = doJSONAuth(t, "POST", "/bookings/"+bookingID+"/cancel", user, nil)
+	if code != 200 {
+		t.Fatalf("cancel: %d %v", code, body)
+	}
+	for range 2 {
+		code, body = doJSONAuth(t, "POST", path, admin, schedule("10:00", "11:00"))
+		if code != 200 || body["schedule"].(map[string]any)["id"] != scheduleID {
+			t.Fatalf("update: %d %v", code, body)
+		}
+	}
+	code, body = doJSONAuth(t, "GET", listPath, user, nil)
+	if code != 200 {
+		t.Fatalf("list after update: %d %v", code, body)
+	}
+	slots = body["slots"].([]any)
+	if len(slots) != 2 || slots[0].(map[string]any)["id"] != remainingID {
+		t.Fatalf("stable slots: %v", slots)
+	}
+	code, body = doJSONAuth(t, "POST", "/bookings/create", user, map[string]string{"slotId": firstID})
+	checkError(400, "INVALID_REQUEST", code, body)
+	code, body = doJSONAuth(t, "GET", "/bookings/my", user, nil)
+	if code != 200 {
+		t.Fatalf("history: %d %v", code, body)
+	}
+	found := false
+	for _, item := range body["bookings"].([]any) {
+		booking := item.(map[string]any)
+		if booking["id"] == bookingID && booking["status"] == "cancelled" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatal("cancelled booking history lost")
+	}
+}

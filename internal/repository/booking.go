@@ -23,11 +23,38 @@ func NewBookingRepository(pool *pgxpool.Pool) *BookingRepository {
 }
 
 func (r *BookingRepository) Create(ctx context.Context, b *domain.Booking) error {
-	err := r.pool.QueryRow(ctx,
+	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{IsoLevel: pgx.ReadCommitted})
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	var slot domain.Slot
+	err = tx.QueryRow(ctx, "SELECT id,room_id,start_at,end_at FROM slots WHERE id=$1", b.SlotID).Scan(&slot.ID, &slot.RoomID, &slot.Start, &slot.End)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return domain.ErrSlotNotFound
+	}
+	if err != nil {
+		return err
+	}
+	if _, err := lockRoom(ctx, tx, slot.RoomID, false); err != nil {
+		return err
+	}
+	schedule, err := getSchedule(ctx, tx, slot.RoomID)
+	if err != nil {
+		return err
+	}
+	var now time.Time
+	if err := tx.QueryRow(ctx, "SELECT clock_timestamp()").Scan(&now); err != nil {
+		return err
+	}
+	if schedule == nil || !schedule.Allows(&slot) || slot.Start.Before(now) {
+		return domain.ErrInvalidRequest
+	}
+	err = tx.QueryRow(ctx,
 		`INSERT INTO bookings (slot_id, user_id, conference_link)
 		 SELECT s.id, $2, $3
 		 FROM slots s
-		 WHERE s.id = $1 AND s.start_at >= NOW()
+		 WHERE s.id = $1 AND s.start_at >= clock_timestamp()
 		 RETURNING id, status, created_at`,
 		b.SlotID, b.UserID, b.ConferenceLink,
 	).Scan(&b.ID, &b.Status, &b.CreatedAt)
@@ -39,7 +66,10 @@ func (r *BookingRepository) Create(ctx context.Context, b *domain.Booking) error
 	if errors.As(err, &pgErr) && pgErr.Code == pgUniqueViolation {
 		return domain.ErrSlotAlreadyBooked
 	}
-	return err
+	if err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func (r *BookingRepository) ListAllPage(ctx context.Context, limit, offset int) ([]domain.Booking, int, error) {

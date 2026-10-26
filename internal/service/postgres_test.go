@@ -92,7 +92,7 @@ func TestPostgres_LazySlotsAndConcurrentBooking(t *testing.T) {
 	slots := repository.NewSlotRepository(pool)
 	bookings := repository.NewBookingRepository(pool)
 	scheduleSvc := service.NewScheduleService(schedules, rooms)
-	slotSvc := service.NewSlotService(slots, rooms, schedules)
+	slotSvc := service.NewSlotService(slots, rooms)
 	bookingSvc := service.NewBookingService(bookings, slots)
 	room := &domain.Room{Name: "concurrent room"}
 	if err := rooms.Create(ctx, room); err != nil {

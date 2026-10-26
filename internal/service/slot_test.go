@@ -18,7 +18,7 @@ func (f slotTestRoomFinder) GetByID(context.Context, string) (*domain.Room, erro
 }
 
 func TestSlotService_DateBounds(t *testing.T) {
-	svc := NewSlotService(nil, slotTestRoomFinder{room: &domain.Room{ID: "room"}}, nil)
+	svc := NewSlotService(nil, slotTestRoomFinder{room: &domain.Room{ID: "room"}})
 
 	past, err := svc.List(context.Background(), "unused", time.Now().UTC().AddDate(0, 0, -1))
 	if err != nil || len(past) != 0 {

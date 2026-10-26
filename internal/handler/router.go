@@ -56,6 +56,7 @@ func NewRouter(d Deps) http.Handler {
 		r.Post("/rooms/create", d.RoomH.Create)
 
 		r.Post("/rooms/{roomId}/schedule/create", d.ScheduleH.Create)
+		r.Post("/rooms/{roomId}/schedule/update", d.ScheduleH.Update)
 
 		r.Get("/rooms/{roomId}/slots/list", d.SlotH.List)
 
