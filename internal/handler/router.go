@@ -25,6 +25,7 @@ func NewRouter(d Deps) http.Handler {
 	r := chi.NewRouter()
 	r.Use(chimiddleware.RequestID)
 	r.Use(observeRequests)
+	r.Use(withRequestDeadline)
 	r.NotFound(func(w http.ResponseWriter, _ *http.Request) {
 		respondError(w, http.StatusNotFound, "NOT_FOUND", "route not found")
 	})

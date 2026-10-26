@@ -1,7 +1,10 @@
 openapi: 3.0.3
 info:
   title: Room Booking Service (Test Task)
-  description: Сервис бронирования переговорок
+  description: >
+    Сервис бронирования переговорок. Запросы к БД ограничены бюджетом обработки
+    10 секунд; истечение deadline возвращает 503 UNAVAILABLE. Уже зафиксированная
+    запись при этом не отменяется.
   version: "1.0.0"
 
 servers:
@@ -344,6 +347,7 @@ paths:
                   format: email
                 password:
                   type: string
+                  description: Не более 72 байт UTF-8; превышение возвращает 401 UNAUTHORIZED.
       responses:
         '200':
           description: Успешная авторизация
@@ -442,6 +446,12 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/InternalErrorResponse' }
 
+        '503':
+          description: Истёк бюджет обработки запроса
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
   /rooms/create:
     post:
       operationId: createRoom
@@ -497,6 +507,12 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/InternalErrorResponse' }
 
+
+        '503':
+          description: Истёк бюджет обработки запроса
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
 
   /rooms/{roomId}/schedule/create:
     post:
@@ -564,6 +580,12 @@ paths:
               schema: { $ref: '#/components/schemas/InternalErrorResponse' }
 
 
+        '503':
+          description: Истёк бюджет обработки запроса
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
   /rooms/{roomId}/slots/list:
     get:
       operationId: listRoomSlots
@@ -619,6 +641,12 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/InternalErrorResponse' }
 
+
+        '503':
+          description: Истёк бюджет обработки запроса
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
 
   /bookings/create:
     post:
@@ -691,6 +719,12 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/InternalErrorResponse' }
 
+        '503':
+          description: Истёк бюджет обработки запроса
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
   /bookings/list:
     get:
       operationId: listBookings
@@ -754,6 +788,12 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/InternalErrorResponse' }
 
+        '503':
+          description: Истёк бюджет обработки запроса
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
   /bookings/my:
     get:
       operationId: listMyBookings
@@ -792,6 +832,12 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/InternalErrorResponse' }
+
+        '503':
+          description: Истёк бюджет обработки запроса
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
 
   /bookings/{bookingId}/cancel:
     post:
@@ -847,3 +893,8 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/InternalErrorResponse' }
+        '503':
+          description: Истёк бюджет обработки запроса
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }

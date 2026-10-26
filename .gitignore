@@ -19,3 +19,9 @@ vendor/
 .vscode/
 
 .DS_Store
+
+# Source-linked ADS installation and local workflow evidence.
+/.agents/
+/.codex/
+/.ai/
+/AGENTS.md

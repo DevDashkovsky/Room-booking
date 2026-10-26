@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -15,6 +17,7 @@ import (
 
 	"github.com/DevDashkovsky/room-booking/internal/db"
 	"github.com/DevDashkovsky/room-booking/internal/domain"
+	"github.com/DevDashkovsky/room-booking/internal/handler"
 	"github.com/DevDashkovsky/room-booking/internal/repository"
 	"github.com/DevDashkovsky/room-booking/internal/service"
 	"github.com/jackc/pgx/v5"
@@ -287,5 +290,51 @@ func TestPostgres_TimestampsRemainUTC(t *testing.T) {
 	}
 	if string(encoded) != `"2026-09-09T12:00:00Z"` {
 		t.Fatalf("non-UTC wire timestamp: %s", encoded)
+	}
+}
+
+func TestPostgres_HTTPDeadlineCancelsBlockedQuery(t *testing.T) {
+	pool := testPool(t)
+	tx, err := pool.Begin(t.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback(context.Background()) }()
+	if _, err := tx.Exec(t.Context(), "LOCK TABLE users IN ACCESS EXCLUSIVE MODE"); err != nil {
+		t.Fatal(err)
+	}
+	auth := service.NewAuthService(repository.NewUserRepository(pool), "secret")
+	router := handler.NewRouter(handler.Deps{AuthH: handler.NewAuthHandler("secret", auth)})
+	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+	defer cancel()
+	req := httptest.NewRequestWithContext(ctx, http.MethodPost, "/login", strings.NewReader(`{"email":"user@test.com","password":"pass"}`))
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	if w.Code != http.StatusServiceUnavailable {
+		t.Fatalf("blocked query: %d %s", w.Code, w.Body.String())
+	}
+	var body struct{ Error struct{ Code string } }
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Error.Code != "UNAVAILABLE" {
+		t.Fatalf("deadline error: %+v", body)
+	}
+	// pgx destroys canceled connections asynchronously. Verify that all capacity
+	// except the locking transaction can be acquired within a bounded interval.
+	capacityCtx, capacityCancel := context.WithTimeout(t.Context(), 2*time.Second)
+	defer capacityCancel()
+	connections := make([]*pgxpool.Conn, 0, pool.Config().MaxConns-1)
+	defer func() {
+		for _, conn := range connections {
+			conn.Release()
+		}
+	}()
+	for i := int32(0); i < pool.Config().MaxConns-1; i++ {
+		conn, err := pool.Acquire(capacityCtx)
+		if err != nil {
+			t.Fatalf("request retained pool capacity after deadline: %v", err)
+		}
+		connections = append(connections, conn)
 	}
 }

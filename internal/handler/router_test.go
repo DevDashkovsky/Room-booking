@@ -4,9 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestRouter_Info(t *testing.T) {
@@ -124,5 +127,47 @@ func TestObserveRequests_RecoversPanicAsJSON(t *testing.T) {
 	}
 	if body.Error.Code != "INTERNAL_ERROR" {
 		t.Fatalf("code=%q, want INTERNAL_ERROR", body.Error.Code)
+	}
+}
+
+func TestObserveRequests_PreservesAbort(t *testing.T) {
+	for _, partial := range []bool{false, true} {
+		t.Run(fmt.Sprint(partial), func(t *testing.T) {
+			h := observeRequests(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				if partial {
+					_, _ = w.Write([]byte(`{"booking":`))
+					panic("after response started")
+				}
+				panic(http.ErrAbortHandler)
+			}))
+			defer func() {
+				got := recover()
+				if err, ok := got.(error); !ok || !errors.Is(err, http.ErrAbortHandler) {
+					t.Errorf("panic = %v, want ErrAbortHandler", got)
+				}
+			}()
+			h.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/abort", nil))
+		})
+	}
+}
+
+func TestObserveRequests_PartialResponseAbortsConnection(t *testing.T) {
+	server := httptest.NewServer(observeRequests(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"booking":`))
+		w.(http.Flusher).Flush()
+		panic("after flush")
+	})))
+	defer server.Close()
+	client := server.Client()
+	client.Timeout = 5 * time.Second
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, server.URL, nil)
+	req.RequestURI = ""
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if _, err := io.ReadAll(resp.Body); err == nil {
+		t.Fatal("partial response completed without a read error")
 	}
 }

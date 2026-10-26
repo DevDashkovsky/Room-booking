@@ -465,3 +465,25 @@ func TestE2E_RegistrationOwnershipAndValidation(t *testing.T) {
 }
 
 const maxE2ESlotHorizonDays = 365
+
+func TestE2E_LoginPasswordByteLimit(t *testing.T) {
+	for i, password := range []string{strings.Repeat("a", 72), strings.Repeat("я", 36)} {
+		email := fmt.Sprintf("password-boundary-%d-%d@example.com", time.Now().UnixNano(), i)
+		code, body := doJSON(t, "POST", "/register", map[string]string{"email": email, "password": password, "role": "user"})
+		if code != http.StatusCreated {
+			t.Fatalf("register: %d %v", code, body)
+		}
+		code, body = doJSON(t, "POST", "/login", map[string]string{"email": email, "password": password})
+		if code != http.StatusOK || body["token"] == nil {
+			t.Fatalf("exact password: %d %v", code, body)
+		}
+		code, body = doJSON(t, "POST", "/login", map[string]string{"email": email, "password": password + "suffix"})
+		if code != http.StatusUnauthorized {
+			t.Fatalf("password suffix: %d %v", code, body)
+		}
+		detail, ok := body["error"].(map[string]any)
+		if !ok || detail["code"] != "UNAUTHORIZED" || body["token"] != nil {
+			t.Fatalf("unauthorized contract: %v", body)
+		}
+	}
+}

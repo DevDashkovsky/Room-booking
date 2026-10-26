@@ -72,7 +72,7 @@ func (s *AuthService) Register(ctx context.Context, email, password, role string
 }
 
 func (s *AuthService) Login(ctx context.Context, email, password string) (string, error) {
-	if email == "" || password == "" {
+	if email == "" || password == "" || len(password) > 72 {
 		return "", domain.ErrUnauthorized
 	}
 
@@ -104,6 +104,9 @@ func (s *AuthService) Login(ctx context.Context, email, password string) (string
 }
 
 func acquireBcrypt(ctx context.Context) bool {
+	if ctx.Err() != nil {
+		return false
+	}
 	select {
 	case bcryptSlots <- struct{}{}:
 		return true
