@@ -1,0 +1,12 @@
+services:
+  k6:
+    image: grafana/k6:2.3.0@sha256:2dd4756ec6e14e62778916e1eb850108e4b499304c02df56760fa0bdb0fba0b8
+    profiles: [load]
+    environment:
+      BASE_URL: http://api:8080
+      LOAD_RATE: ${LOAD_RATE:-100}
+      LOAD_SECONDS: ${LOAD_SECONDS:-60}
+      LOAD_CONFLICT_SECONDS: ${LOAD_CONFLICT_SECONDS:-20}
+    volumes:
+      - ./scripts/load-test.js:/test/load-test.js:ro
+    command: [run, --quiet, /test/load-test.js]

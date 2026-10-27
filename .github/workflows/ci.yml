@@ -38,6 +38,8 @@ jobs:
           args: --build-tags e2e ./...
       - name: Check formatting
         run: golangci-lint fmt --diff
+      - name: Check load script error detection
+        run: make test-load-script
 
   tests:
     name: Race and PostgreSQL tests
