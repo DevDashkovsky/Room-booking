@@ -1,4 +1,4 @@
-.PHONY: up down test test-race coverage lint test-integration test-e2e
+.PHONY: up down test test-race coverage lint test-integration test-e2e test-load test-load-script
 
 COMPOSE := $(shell docker compose version >/dev/null 2>&1 && echo 'docker compose' || echo 'docker-compose')
 
@@ -28,3 +28,9 @@ test-integration:
 
 test-e2e:
 	sh scripts/test-e2e.sh
+
+test-load:
+	sh scripts/test-load.sh
+
+test-load-script:
+	node --experimental-vm-modules --test scripts/load-test.test.mjs
