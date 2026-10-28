@@ -9,6 +9,7 @@ var (
 	ErrSlotNotFound            = errors.New("SLOT_NOT_FOUND")
 	ErrSlotAlreadyBooked       = errors.New("SLOT_ALREADY_BOOKED")
 	ErrBookingNotFound         = errors.New("BOOKING_NOT_FOUND")
+	ErrBookingMoveConflict     = errors.New("BOOKING_MOVE_CONFLICT")
 	ErrScheduleExists          = errors.New("SCHEDULE_EXISTS")
 	ErrScheduleNotFound        = errors.New("SCHEDULE_NOT_FOUND")
 	ErrScheduleBookingConflict = errors.New("SCHEDULE_BOOKING_CONFLICT")

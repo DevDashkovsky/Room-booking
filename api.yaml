@@ -61,6 +61,7 @@ components:
                 - SLOT_NOT_FOUND
                 - SLOT_ALREADY_BOOKED
                 - BOOKING_NOT_FOUND
+                - BOOKING_MOVE_CONFLICT
                 - FORBIDDEN
                 - SCHEDULE_EXISTS
                 - SCHEDULE_NOT_FOUND
@@ -968,6 +969,85 @@ paths:
 
         '503':
           description: Истёк бюджет обработки запроса
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+
+  /bookings/{bookingId}/move:
+    post:
+      operationId: moveBooking
+      tags: [Bookings]
+      summary: Перенести свою активную будущую бронь (только user)
+      description: >
+        Атомарно меняет slotId, в том числе на слот другой комнаты.
+        Сохраняет id, userId, createdAt и conferenceLink. Старый слот освобождается
+        только при успешном переносе; при отказе исходная бронь не меняется.
+        Исходный и целевой слоты должны ещё не начаться, целевой слот должен
+        входить в текущее расписание. Повтор на текущий слот допустимой брони
+        возвращает 200 без изменений. Параллельные переносы одной брони
+        выполняются последовательно; последний успешный запрос задаёт её слот.
+        Потеря ответа не отменяет уже зафиксированный перенос: проверьте bookings/my.
+      security: [{ BearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/BookingIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [slotId]
+              properties:
+                slotId:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Бронь перенесена или уже находится на указанном слоте
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [booking]
+                properties:
+                  booking:
+                    $ref: '#/components/schemas/Booking'
+        '400':
+          description: Некорректный UUID или JSON
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '401':
+          description: Не авторизован
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '403':
+          description: Чужая бронь или роль не user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '404':
+          description: BOOKING_NOT_FOUND или SLOT_NOT_FOUND
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '409':
+          description: >
+            SLOT_ALREADY_BOOKED — целевой слот занят.
+            BOOKING_MOVE_CONFLICT — бронь отменена, исходный/целевой слот уже
+            начался либо целевой слот исключён из текущего расписания.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErrorResponse' }
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/InternalErrorResponse' }
+        '503':
+          description: Истёк бюджет обработки запроса; уже зафиксированный перенос не отменяется
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErrorResponse' }

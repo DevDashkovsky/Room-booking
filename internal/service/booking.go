@@ -14,7 +14,8 @@ type bookingRepository interface {
 	ListAllPage(context.Context, int, int) ([]domain.Booking, int, error)
 	ListByUser(context.Context, string) ([]domain.Booking, error)
 	GetByID(context.Context, string) (*domain.Booking, error)
-	Cancel(context.Context, string) error
+	Cancel(context.Context, string) (*domain.Booking, error)
+	Move(context.Context, string, string, string) (*domain.Booking, error)
 }
 
 type slotFinder interface {
@@ -113,10 +114,20 @@ func (s *BookingService) Cancel(ctx context.Context, bookingID, userID string) (
 		return booking, nil
 	}
 
-	if err := s.bookingRepo.Cancel(ctx, bookingID); err != nil {
+	booking, err = s.bookingRepo.Cancel(ctx, bookingID)
+	if err != nil {
 		return nil, fmt.Errorf("cancel booking: %w", err)
 	}
+	return booking, nil
+}
 
-	booking.Status = "cancelled"
+func (s *BookingService) Move(ctx context.Context, bookingID, slotID, userID string) (*domain.Booking, error) {
+	if !domain.ValidUUID(bookingID) || !domain.ValidUUID(slotID) || !domain.ValidUUID(userID) {
+		return nil, domain.ErrInvalidRequest
+	}
+	booking, err := s.bookingRepo.Move(ctx, bookingID, slotID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("move booking: %w", err)
+	}
 	return booking, nil
 }

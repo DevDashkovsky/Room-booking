@@ -157,10 +157,18 @@ func (r *BookingRepository) ListByUser(ctx context.Context, userID string) ([]do
 	return bookings, rows.Err()
 }
 
-func (r *BookingRepository) Cancel(ctx context.Context, id string) error {
-	_, err := r.pool.Exec(ctx,
-		`UPDATE bookings SET status = 'cancelled' WHERE id = $1`,
+func (r *BookingRepository) Cancel(ctx context.Context, id string) (*domain.Booking, error) {
+	var booking domain.Booking
+	err := r.pool.QueryRow(ctx,
+		`UPDATE bookings SET status = 'cancelled' WHERE id = $1
+         RETURNING id, slot_id, user_id, status, conference_link, created_at`,
 		id,
-	)
-	return err
+	).Scan(&booking.ID, &booking.SlotID, &booking.UserID, &booking.Status, &booking.ConferenceLink, &booking.CreatedAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, domain.ErrBookingNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &booking, nil
 }
