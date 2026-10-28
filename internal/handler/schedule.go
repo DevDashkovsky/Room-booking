@@ -103,6 +103,8 @@ func handleServiceError(w http.ResponseWriter, err error) {
 		respondError(w, http.StatusNotFound, "SLOT_NOT_FOUND", "slot not found")
 	case errors.Is(err, domain.ErrBookingNotFound):
 		respondError(w, http.StatusNotFound, "BOOKING_NOT_FOUND", "booking not found")
+	case errors.Is(err, domain.ErrBookingMoveConflict):
+		respondError(w, http.StatusConflict, "BOOKING_MOVE_CONFLICT", "booking or target slot is no longer available for moving")
 	case errors.Is(err, domain.ErrScheduleExists):
 		respondError(w, http.StatusConflict, "SCHEDULE_EXISTS", "schedule for this room already exists")
 	case errors.Is(err, domain.ErrScheduleNotFound):

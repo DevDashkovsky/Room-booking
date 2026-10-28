@@ -18,6 +18,7 @@ type bookingService interface {
 	ListAll(context.Context, int, int) (*service.ListAllResult, error)
 	ListMy(context.Context, string) ([]domain.Booking, error)
 	Cancel(context.Context, string, string) (*domain.Booking, error)
+	Move(context.Context, string, string, string) (*domain.Booking, error)
 }
 
 type BookingHandler struct {
@@ -123,6 +124,34 @@ func (h *BookingHandler) Cancel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	respondJSON(w, http.StatusOK, map[string]any{"booking": booking})
+}
+
+func (h *BookingHandler) Move(w http.ResponseWriter, r *http.Request) {
+	if middleware.GetRole(r.Context()) != "user" {
+		respondError(w, http.StatusForbidden, "FORBIDDEN", "only user role can move bookings")
+		return
+	}
+	bookingID := chi.URLParam(r, "bookingId")
+	if !domain.ValidUUID(bookingID) {
+		respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "bookingId must be a UUID")
+		return
+	}
+	var req struct {
+		SlotID string `json:"slotId"`
+	}
+	if !readBodyJSON(w, r, &req) {
+		return
+	}
+	if !domain.ValidUUID(req.SlotID) {
+		respondError(w, http.StatusBadRequest, "INVALID_REQUEST", "slotId must be a UUID")
+		return
+	}
+	booking, err := h.bookingSvc.Move(r.Context(), bookingID, req.SlotID, middleware.GetUserID(r.Context()))
+	if err != nil {
+		handleServiceError(w, err)
+		return
+	}
 	respondJSON(w, http.StatusOK, map[string]any{"booking": booking})
 }
 

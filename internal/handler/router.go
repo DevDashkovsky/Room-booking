@@ -65,6 +65,7 @@ func NewRouter(d Deps) http.Handler {
 		r.Get("/bookings/list", d.BookingH.ListAll)
 		r.Get("/bookings/my", d.BookingH.ListMy)
 		r.Post("/bookings/{bookingId}/cancel", d.BookingH.Cancel)
+		r.Post("/bookings/{bookingId}/move", d.BookingH.Move)
 	})
 
 	return r
